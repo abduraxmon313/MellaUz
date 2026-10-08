@@ -47,7 +47,11 @@ if (task === "build") {
   }
 }
 
-const child = spawn(cmd, args, { stdio: "inherit", cwd, env: process.env });
+const env = app === "mella-web"
+  ? { ...process.env, HOSTNAME: "0.0.0.0" }
+  : process.env;
+
+const child = spawn(cmd, args, { stdio: "inherit", cwd, env });
 
 const forward = (signal) => {
   try {
