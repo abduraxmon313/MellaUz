@@ -11,11 +11,14 @@ export function OrderForm({
   locale,
   defaultProduct = "",
   onSuccess,
+  onDone,
 }: {
   dict: Dictionary;
   locale: Locale;
   defaultProduct?: string;
   onSuccess?: () => void;
+  /** Dialog ichida ishlatilganda — muvaffaqiyatdan keyin "Yopish" tugmasi. */
+  onDone?: () => void;
 }) {
   const t = dict.order;
   const uid = useId();
@@ -74,13 +77,18 @@ export function OrderForm({
         </div>
         <h3 className="font-display text-2xl text-champagne">{t.successTitle}</h3>
         <p className="mt-2 text-sm text-pearl/70">{t.successText}</p>
+        {onDone && (
+          <button type="button" onClick={onDone} className="btn-gold mt-6">
+            {t.close}
+          </button>
+        )}
       </div>
     );
   }
 
   const field =
-    "w-full rounded-xl border border-mocha/50 bg-espresso/60 px-4 py-3 text-pearl placeholder:text-pearl/35 outline-none transition focus:border-gold/70 focus:ring-1 focus:ring-gold/40";
-  const label = "mb-1.5 block text-xs uppercase tracking-wider text-pearl/60";
+    "w-full rounded-2xl border border-pearl/10 bg-espresso/50 px-4 py-3.5 text-[15px] text-pearl placeholder:text-pearl/30 outline-none transition focus:border-gold/60 focus:bg-espresso/70 focus:ring-4 focus:ring-gold/10 aria-[invalid=true]:border-gold/70";
+  const label = "mb-1.5 block text-[11px] uppercase tracking-[0.18em] text-pearl/55";
 
   return (
     <form onSubmit={handleSubmit} noValidate className="space-y-5">
@@ -160,8 +168,11 @@ export function OrderForm({
       <button
         type="submit"
         disabled={status === "submitting"}
-        className="group inline-flex w-full items-center justify-center gap-2 rounded-xl bg-gold px-6 py-3.5 text-sm font-semibold uppercase tracking-wider text-espresso transition hover:bg-champagne disabled:opacity-60 sm:w-auto"
+        className="btn-gold w-full disabled:pointer-events-none disabled:opacity-60"
       >
+        {status === "submitting" && (
+          <span className="h-4 w-4 animate-spin rounded-full border-2 border-espresso/30 border-t-espresso" aria-hidden />
+        )}
         {status === "submitting" ? t.submitting : t.submit}
       </button>
 

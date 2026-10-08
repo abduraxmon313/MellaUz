@@ -2,6 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import type { Locale } from "@/i18n/config";
 import type { CategoryView } from "@/lib/catalog/types";
+import { ArrowIcon } from "@/components/ArrowIcon";
 
 export function CategoryCard({
   category,
@@ -32,8 +33,8 @@ export function CategoryCard({
         {category.tagline && (
           <p className="mt-1 max-w-xs text-sm text-pearl/70">{category.tagline}</p>
         )}
-        <span className="mt-3 inline-flex items-center gap-1.5 text-xs uppercase tracking-wider text-champagne opacity-0 transition group-hover:opacity-100">
-          <span>→</span>
+        <span className="mt-4 inline-flex h-10 w-10 items-center justify-center rounded-full border border-pearl/30 text-pearl transition-all duration-500 group-hover:border-gold group-hover:bg-gold group-hover:text-espresso">
+          <ArrowIcon />
         </span>
       </div>
     </Link>

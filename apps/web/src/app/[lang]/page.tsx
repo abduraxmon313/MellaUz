@@ -11,9 +11,11 @@ import { ProductCard } from "@/components/ProductCard";
 import { CategoryCard } from "@/components/CategoryCard";
 import { OrderDialog } from "@/components/OrderDialog";
 import { Reveal } from "@/components/Reveal";
+import { MellaEmblem } from "@/components/Logo";
 import heroImg from "@/assets/images/hero.jpg";
 import craftImg from "@/assets/images/craft-hands.jpg";
 import leatherImg from "@/assets/images/leather-texture.jpg";
+import { ArrowIcon } from "@/components/ArrowIcon";
 
 export default async function HomePage({
   params,
@@ -55,7 +57,7 @@ export default async function HomePage({
   return (
     <>
       {/* ── Hero ───────────────────────────────────────────── */}
-      <section className="relative flex min-h-[92vh] items-center overflow-hidden">
+      <section className="grain relative flex min-h-[100svh] items-center overflow-hidden">
         <Image
           src={heroImg}
           alt=""
@@ -63,17 +65,21 @@ export default async function HomePage({
           priority
           placeholder="blur"
           sizes="100vw"
-          className="object-cover object-center"
+          className="hero-zoom object-cover object-center"
         />
-        <div className="absolute inset-0 bg-linear-to-r from-espresso via-espresso/70 to-espresso/20" />
-        <div className="absolute inset-0 bg-linear-to-t from-espresso via-transparent to-espresso/40" />
+        <div className="absolute inset-0 bg-linear-to-r from-espresso via-espresso/75 to-espresso/10" />
+        <div className="absolute inset-0 bg-linear-to-t from-espresso via-transparent to-espresso/50" />
+        <div className="absolute -left-40 top-1/3 h-[32rem] w-[32rem] rounded-full bg-gold/10 blur-[120px]" />
 
-        <div className="relative mx-auto w-full max-w-7xl px-5 pt-24 lg:px-8">
+        <MellaEmblem className="pointer-events-none absolute -right-16 -bottom-10 hidden h-[52vh] w-[52vh] opacity-[0.06] xl:block" />
+
+        <div className="relative mx-auto w-full max-w-7xl px-5 pt-32 pb-24 lg:px-8">
           <div className="max-w-2xl">
-            <p className="animate-fade-up text-xs uppercase tracking-[0.3em] text-gold">
+            <p className="animate-fade-up inline-flex items-center gap-3 rounded-full border border-gold/25 bg-espresso/40 px-4 py-1.5 text-[11px] uppercase tracking-[0.3em] text-gold backdrop-blur-sm">
+              <span className="h-1.5 w-1.5 rounded-full bg-gold" />
               {dict.home.heroKicker}
             </p>
-            <h1 className="animate-fade-up mt-5 font-display text-5xl leading-[1.05] text-pearl sm:text-6xl lg:text-7xl">
+            <h1 className="animate-fade-up mt-6 font-display text-[2.9rem] leading-[1.02] text-pearl sm:text-6xl lg:text-[5.2rem]">
               {dict.home.heroTitle.split(",").map((part, i, arr) => (
                 <span key={i}>
                   <span className={i === arr.length - 1 ? "text-gradient-gold" : ""}>
@@ -86,12 +92,10 @@ export default async function HomePage({
             <p className="animate-fade-up mt-6 max-w-xl text-base leading-relaxed text-pearl/75 sm:text-lg">
               {dict.home.heroText}
             </p>
-            <div className="animate-fade-up mt-9 flex flex-wrap items-center gap-4">
-              <Link
-                href={`/${locale}/catalog`}
-                className="inline-flex items-center justify-center gap-2 rounded-full bg-gold px-8 py-3.5 text-sm font-semibold uppercase tracking-wider text-espresso transition hover:bg-champagne"
-              >
+            <div className="animate-fade-up mt-10 flex flex-wrap items-center gap-4">
+              <Link href={`/${locale}/catalog`} className="btn-gold">
                 {dict.home.heroCtaCatalog}
+                <ArrowIcon />
               </Link>
               <OrderDialog
                 dict={dict}
@@ -100,20 +104,42 @@ export default async function HomePage({
                 variant="outline"
               />
             </div>
+
+            <dl className="animate-fade-up mt-14 grid max-w-xl grid-cols-2 gap-x-8 gap-y-6 border-t border-pearl/10 pt-8 sm:grid-cols-4">
+              {dict.home.stats.map((s) => (
+                <div key={s.label}>
+                  <dt className="font-display text-3xl text-gradient-gold sm:text-4xl">{s.value}</dt>
+                  <dd className="mt-1 text-[11px] uppercase tracking-[0.16em] text-pearl/55">{s.label}</dd>
+                </div>
+              ))}
+            </dl>
           </div>
+        </div>
+
+        <div className="absolute inset-x-0 bottom-6 hidden justify-center sm:flex">
+          <span className="flex flex-col items-center gap-2 text-[10px] uppercase tracking-[0.3em] text-pearl/45">
+            <span className="flex h-9 w-5 justify-center rounded-full border border-pearl/25 pt-1.5">
+              <span className="scroll-dot h-1.5 w-1 rounded-full bg-gold" />
+            </span>
+            {dict.home.scroll}
+          </span>
         </div>
       </section>
 
-      {/* ── Brend chizig'i ─────────────────────────────────── */}
-      <div className="border-y border-mocha/25 bg-dark-chocolate/50">
-        <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-center gap-x-10 gap-y-3 px-5 py-5 lg:px-8">
-          {strip.map((item, i) => (
-            <span
-              key={i}
-              className="text-[11px] uppercase tracking-[0.25em] text-pearl/55"
-            >
-              {item}
-            </span>
+      {/* ── Brend lentasi (cheksiz) ────────────────────────── */}
+      <div className="overflow-hidden border-y border-gold/10 bg-dark-chocolate/60 py-5">
+        <div className="marquee">
+          {[0, 1].map((dup) => (
+            <div key={dup} className="flex shrink-0 items-center" aria-hidden={dup === 1}>
+              {[...strip, ...strip].map((item, i) => (
+                <span key={i} className="flex items-center">
+                  <span className="px-8 font-display text-xl italic text-pearl/70 sm:text-2xl">
+                    {item}
+                  </span>
+                  <MellaEmblem className="h-6 w-6 opacity-70" />
+                </span>
+              ))}
+            </div>
           ))}
         </div>
       </div>
@@ -131,9 +157,10 @@ export default async function HomePage({
           </div>
           <Link
             href={`/${locale}/catalog`}
-            className="hidden shrink-0 text-sm uppercase tracking-wider text-pearl/60 transition hover:text-champagne sm:inline"
+            className="hidden shrink-0 items-center gap-2 text-sm uppercase tracking-wider text-pearl/60 transition hover:text-champagne sm:inline-flex"
           >
-            {dict.common.viewAll} →
+            {dict.common.viewAll}
+            <ArrowIcon />
           </Link>
         </Reveal>
 
@@ -172,11 +199,9 @@ export default async function HomePage({
           </div>
 
           <div className="mt-12 text-center">
-            <Link
-              href={`/${locale}/catalog`}
-              className="inline-flex items-center gap-2 rounded-full border border-pearl/25 px-8 py-3 text-sm uppercase tracking-wider text-pearl transition hover:border-gold hover:text-champagne"
-            >
+            <Link href={`/${locale}/catalog`} className="btn-ghost">
               {dict.common.viewAll}
+              <ArrowIcon />
             </Link>
           </div>
         </div>
@@ -208,7 +233,8 @@ export default async function HomePage({
             href={`/${locale}/about`}
             className="mt-8 inline-flex items-center gap-2 text-sm uppercase tracking-wider text-gold transition hover:text-champagne"
           >
-            {dict.home.storyCta} →
+            {dict.home.storyCta}
+            <ArrowIcon />
           </Link>
         </Reveal>
       </section>

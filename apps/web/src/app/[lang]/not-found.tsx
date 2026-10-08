@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ArrowIcon } from "@/components/ArrowIcon";
 
 export default function NotFound() {
   return (
@@ -14,7 +15,8 @@ export default function NotFound() {
           href="/"
           className="mt-8 inline-flex items-center gap-2 rounded-full bg-gold px-7 py-3 text-sm font-semibold uppercase tracking-wider text-espresso transition hover:bg-champagne"
         >
-          MELLA →
+          MELLA
+            <ArrowIcon />
         </Link>
       </div>
     </section>

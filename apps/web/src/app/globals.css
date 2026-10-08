@@ -106,6 +106,186 @@ body {
   }
 }
 
+/* ── Komponentlar ─────────────────────────────────────────── */
+@layer components {
+  .btn-gold {
+    position: relative;
+    isolation: isolate;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.6rem;
+    overflow: hidden;
+    border-radius: 9999px;
+    padding: 0.9rem 1.9rem;
+    font-size: 0.8rem;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--color-espresso);
+    background: linear-gradient(110deg, var(--color-champagne), var(--color-gold) 55%, #c08a4a);
+    box-shadow:
+      0 0 0 1px rgba(247, 217, 156, 0.35) inset,
+      0 12px 30px -12px rgba(217, 168, 103, 0.55);
+    transition:
+      transform 0.35s cubic-bezier(0.16, 1, 0.3, 1),
+      box-shadow 0.35s ease;
+  }
+  .btn-gold::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    background: linear-gradient(110deg, transparent 30%, rgba(255, 255, 255, 0.45) 50%, transparent 70%);
+    transform: translateX(-120%);
+    transition: transform 0.8s ease;
+  }
+  .btn-gold:hover {
+    transform: translateY(-2px);
+    box-shadow:
+      0 0 0 1px rgba(247, 217, 156, 0.5) inset,
+      0 18px 40px -14px rgba(217, 168, 103, 0.75);
+  }
+  .btn-gold:hover::after {
+    transform: translateX(120%);
+  }
+
+  .btn-ghost {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.6rem;
+    border-radius: 9999px;
+    padding: 0.9rem 1.9rem;
+    font-size: 0.8rem;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--color-pearl);
+    border: 1px solid rgba(242, 232, 208, 0.25);
+    background: rgba(24, 15, 15, 0.25);
+    backdrop-filter: blur(8px);
+    transition: all 0.35s ease;
+  }
+  .btn-ghost:hover {
+    border-color: var(--color-gold);
+    color: var(--color-champagne);
+    background: rgba(217, 168, 103, 0.08);
+  }
+
+  /* Oltin ingichka chegara (gradient border) */
+  .gold-ring {
+    position: relative;
+  }
+  .gold-ring::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: 1px;
+    background: linear-gradient(140deg, rgba(247, 217, 156, 0.45), rgba(73, 56, 51, 0.15) 40%, rgba(217, 168, 103, 0.35));
+    -webkit-mask:
+      linear-gradient(#000 0 0) content-box,
+      linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    pointer-events: none;
+  }
+}
+
+/* ── Dialog animatsiyasi ──────────────────────────────────── */
+.dialog-in .dialog-backdrop {
+  animation: fade-in 0.25s ease both;
+}
+.dialog-in .dialog-panel {
+  animation: sheet-up 0.45s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.dialog-out .dialog-backdrop {
+  animation: fade-in 0.22s ease reverse both;
+}
+.dialog-out .dialog-panel {
+  animation: sheet-down 0.22s ease-in both;
+}
+@keyframes sheet-up {
+  from {
+    opacity: 0;
+    transform: translateY(40px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes sheet-down {
+  to {
+    opacity: 0;
+    transform: translateY(30px) scale(0.98);
+  }
+}
+
+/* ── Cheksiz yuguruvchi lenta ─────────────────────────────── */
+.marquee {
+  display: flex;
+  width: max-content;
+  animation: marquee 38s linear infinite;
+}
+.marquee:hover {
+  animation-play-state: paused;
+}
+@keyframes marquee {
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+/* ── Nozik "grain" teksturasi (premium hissiyot) ──────────── */
+.grain::after {
+  content: "";
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  opacity: 0.06;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* Hero rasmining sekin kattalashishi */
+@keyframes hero-zoom {
+  from {
+    transform: scale(1.12);
+  }
+  to {
+    transform: scale(1);
+  }
+}
+.hero-zoom {
+  animation: hero-zoom 2.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* Hero'dagi pastga ishora */
+@keyframes scroll-dot {
+  0% {
+    transform: translateY(0);
+    opacity: 0;
+  }
+  30% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(14px);
+    opacity: 0;
+  }
+}
+.scroll-dot {
+  animation: scroll-dot 1.8s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .marquee {
+    animation: none;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;
