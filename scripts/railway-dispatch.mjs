@@ -40,9 +40,8 @@ if (task === "build") {
     args = ["dist/index.js"];
     cwd = "apps/bot";
   } else {
-    // standalone output mode: .next/standalone/apps/web/server.js da ishga tushadi
     cmd = process.execPath;
-    args = [".next/standalone/apps/web/server.js"];
+    args = ["node_modules/next/dist/bin/next", "start", "-H", "0.0.0.0"];
     cwd = "apps/web";
   }
 }
