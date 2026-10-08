@@ -27,6 +27,13 @@ const uz = {
     madeIn: "O‘zbekistonda yaratilgan",
   },
   home: {
+    scroll: "Pastga",
+    stats: [
+      { value: "2019", label: "yildan buyon" },
+      { value: "34+", label: "yillik tajriba" },
+      { value: "100%", label: "tabiiy charm" },
+      { value: "1000+", label: "mamnun mijozlar" },
+    ],
     heroKicker: "O‘zbekistondan dunyoga",
     heroTitle: "Ayolning uslubi, ishonchi va o‘ziga xosligi",
     heroText:
@@ -126,6 +133,7 @@ const uz = {
     orderHere: "Buyurtma berish uchun quyidagi shaklni to‘ldiring",
   },
   order: {
+    close: "Yopish",
     title: "Buyurtma so‘rovi",
     subtitle:
       "Ma’lumotlaringizni qoldiring — operatorimiz tez orada siz bilan bog‘lanadi.",

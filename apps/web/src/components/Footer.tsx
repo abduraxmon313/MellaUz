@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { Locale } from "@/i18n/config";
 import type { Dictionary } from "@/i18n/dictionaries";
 import { site } from "@/lib/site";
+import { Logo, MellaEmblem } from "./Logo";
 
 function InstagramIcon() {
   return (
@@ -35,13 +36,12 @@ export function Footer({ dict, locale }: { dict: Dictionary; locale: Locale }) {
   ];
 
   return (
-    <footer className="border-t border-mocha/25 bg-dark-chocolate">
-      <div className="mx-auto grid max-w-7xl gap-12 px-5 py-16 lg:grid-cols-[1.4fr_1fr_1fr] lg:px-8">
+    <footer className="relative overflow-hidden border-t border-gold/10 bg-dark-chocolate">
+      <MellaEmblem className="pointer-events-none absolute -right-20 -top-10 h-[30rem] w-[30rem] opacity-[0.04]" />
+      <div className="relative mx-auto grid max-w-7xl gap-12 px-5 py-16 lg:grid-cols-[1.4fr_1fr_1fr] lg:px-8 lg:py-20">
         <div>
-          <span className="font-display text-3xl tracking-[0.42em] text-pearl">
-            MELLA
-          </span>
-          <p className="mt-2 text-xs uppercase tracking-[0.3em] text-gold/80">
+          <Logo locale={locale} size="lg" />
+          <p className="mt-4 text-xs uppercase tracking-[0.3em] text-gold/80">
             {dict.meta.tagline}
           </p>
           <p className="mt-5 max-w-sm text-sm leading-relaxed text-pearl/55">
@@ -108,7 +108,7 @@ export function Footer({ dict, locale }: { dict: Dictionary; locale: Locale }) {
         </div>
       </div>
 
-      <div className="border-t border-mocha/25">
+      <div className="relative border-t border-mocha/25">
         <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-2 px-5 py-6 text-xs text-pearl/45 sm:flex-row lg:px-8">
           <p>
             © {new Date().getFullYear()} MELLA. {dict.footer.rights}

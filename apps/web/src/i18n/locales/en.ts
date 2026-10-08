@@ -29,6 +29,13 @@ const en: Dictionary = {
     madeIn: "Made in Uzbekistan",
   },
   home: {
+    scroll: "Scroll",
+    stats: [
+      { value: "2019", label: "founded" },
+      { value: "34+", label: "years of expertise" },
+      { value: "100%", label: "genuine leather" },
+      { value: "1000+", label: "happy clients" },
+    ],
     heroKicker: "From Uzbekistan to the world",
     heroTitle: "A woman’s style, confidence and individuality",
     heroText:
@@ -128,6 +135,7 @@ const en: Dictionary = {
     orderHere: "To place an order, fill in the form below",
   },
   order: {
+    close: "Close",
     title: "Order request",
     subtitle:
       "Leave your details — our operator will contact you shortly.",
