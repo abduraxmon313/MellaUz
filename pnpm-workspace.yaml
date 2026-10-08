@@ -1,0 +1,14 @@
+# Har bir apps/* papkasi — Railway'da ALOHIDA service.
+# Railway repo import qilinganda shu ro'yxatdan avtomatik 2 ta service yaratadi:
+#   apps/web  -> mella-web  (brend sayti)
+#   apps/bot  -> mella-bot  (Telegram bot + Mini App)
+# DIQQAT: bu yerga yangi package qo'shilsa, Railway uni ham service sifatida
+# taklif qilishi mumkin.
+packages:
+  - "apps/*"
+
+# Build skriptlari kerak emas (prebuilt binary'lar optionalDependencies orqali keladi).
+ignoredBuiltDependencies:
+  - sharp
+  - unrs-resolver
+  - esbuild

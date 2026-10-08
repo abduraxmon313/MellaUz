@@ -1,0 +1,26 @@
+# dependencies
+node_modules/
+.pnp
+.pnp.*
+
+# builds
+.next/
+out/
+dist/
+build/
+*.tsbuildinfo
+next-env.d.ts
+
+# env (maxfiy kalitlar repoga tushmasin)
+.env
+.env*.local
+.env.production
+
+# logs / misc
+npm-debug.log*
+pnpm-debug.log*
+.DS_Store
+*.pem
+coverage/
+.vercel
+.turbo

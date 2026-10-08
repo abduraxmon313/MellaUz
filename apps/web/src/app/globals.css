@@ -1,0 +1,121 @@
+@import "tailwindcss";
+
+/*
+  MELLA dizayn tizimi.
+  Brend palitrasi: Deep Espresso -> Gold -> Ivory.
+*/
+@theme {
+  --color-espresso: #180f0f;
+  --color-dark-chocolate: #261918;
+  --color-chocolate: #382725;
+  --color-brown: #493833;
+  --color-mocha: #634b47;
+  --color-dark-gold: #97612c;
+  --color-gold: #d9a867;
+  --color-champagne: #f7d99c;
+  --color-pearl: #f2e8d0;
+  --color-ivory: #fcf8e5;
+
+  --font-serif: var(--font-cormorant), Georgia, "Times New Roman", serif;
+  --font-sans: var(--font-manrope), ui-sans-serif, system-ui, sans-serif;
+
+  --tracking-brand: 0.28em;
+
+  --animate-fade-up: fade-up 0.9s cubic-bezier(0.16, 1, 0.3, 1) both;
+  --animate-fade-in: fade-in 1.2s ease both;
+}
+
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(28px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+:root {
+  color-scheme: dark;
+}
+
+html {
+  scroll-behavior: smooth;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  background-color: var(--color-espresso);
+  color: var(--color-pearl);
+  font-family: var(--font-sans);
+  font-feature-settings: "liga" 1, "calt" 1;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* Nozik, brendga mos skroll chizig'i */
+::selection {
+  background-color: var(--color-gold);
+  color: var(--color-espresso);
+}
+
+@layer utilities {
+  .font-display {
+    font-family: var(--font-serif);
+    font-weight: 500;
+  }
+
+  /* Oltin градиент matn (sarlavha urg'ulari uchun) */
+  .text-gradient-gold {
+    background: linear-gradient(
+      100deg,
+      var(--color-champagne) 0%,
+      var(--color-gold) 45%,
+      var(--color-dark-gold) 100%
+    );
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  .shadow-luxe {
+    box-shadow:
+      0 1px 0 0 rgba(247, 217, 156, 0.08) inset,
+      0 30px 60px -30px rgba(0, 0, 0, 0.8);
+  }
+
+  /* Hover payti sekin ko'tariladigan karta */
+  .lift {
+    transition:
+      transform 0.5s cubic-bezier(0.16, 1, 0.3, 1),
+      box-shadow 0.5s ease;
+  }
+
+  .lift:hover {
+    transform: translateY(-6px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}

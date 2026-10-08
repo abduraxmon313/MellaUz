@@ -1,0 +1,20 @@
+{
+  "$schema": "https://railway.com/railway.schema.json",
+  "build": {
+    "builder": "RAILPACK",
+    "buildCommand": "pnpm --filter mella-bot build",
+    "watchPatterns": [
+      "apps/bot/**",
+      "pnpm-lock.yaml",
+      "pnpm-workspace.yaml",
+      "package.json"
+    ]
+  },
+  "deploy": {
+    "startCommand": "pnpm --filter mella-bot start",
+    "healthcheckPath": "/health",
+    "healthcheckTimeout": 60,
+    "restartPolicyType": "ON_FAILURE",
+    "restartPolicyMaxRetries": 5
+  }
+}

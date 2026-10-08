@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="uz">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#180F0F" />
+    <title>MELLA</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+      :root {
+        --espresso: #180f0f;
+        --chocolate: #382725;
+        --gold: #d9a867;
+        --champagne: #f7d99c;
+        --pearl: #f2e8d0;
+      }
+      * { box-sizing: border-box; margin: 0; padding: 0; }
+      body {
+        font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+        background: radial-gradient(120% 100% at 50% 0%, #261918 0%, var(--espresso) 60%);
+        color: var(--pearl);
+        min-height: 100dvh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 24px;
+        text-align: center;
+      }
+      .card { max-width: 420px; animation: fade 0.9s ease both; }
+      .brand {
+        font-family: Georgia, "Times New Roman", serif;
+        font-size: 44px;
+        letter-spacing: 0.42em;
+        padding-left: 0.42em;
+        color: var(--pearl);
+      }
+      .tagline {
+        margin-top: 10px;
+        font-size: 11px;
+        letter-spacing: 0.3em;
+        text-transform: uppercase;
+        color: var(--gold);
+      }
+      .line {
+        width: 48px; height: 1px; margin: 28px auto;
+        background: linear-gradient(90deg, transparent, var(--gold), transparent);
+      }
+      p.desc { color: rgba(242, 232, 208, 0.7); line-height: 1.6; font-size: 15px; }
+      .soon {
+        margin-top: 26px; display: inline-block; padding: 8px 18px;
+        border: 1px solid rgba(217, 168, 103, 0.4); border-radius: 999px;
+        font-size: 12px; letter-spacing: 0.1em; color: var(--champagne);
+      }
+      a.btn {
+        margin-top: 28px; display: inline-block; text-decoration: none;
+        background: var(--gold); color: var(--espresso); font-weight: 600;
+        padding: 13px 30px; border-radius: 999px; font-size: 13px;
+        letter-spacing: 0.08em; text-transform: uppercase; transition: background 0.3s;
+      }
+      a.btn:hover { background: var(--champagne); }
+      @keyframes fade { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: none; } }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <div class="brand">MELLA</div>
+      <div class="tagline">Uslub · Sifat · Tajriba</div>
+      <div class="line"></div>
+      <p class="desc">
+        Do‘kon Mini App tez orada shu yerda ishga tushadi — katalog, savat va
+        buyurtma berish imkoniyati bilan.
+      </p>
+      <div class="soon">Tez kunda</div>
+      <br />
+      <a class="btn" id="site" href="https://www.instagram.com/mella_uz/" target="_blank" rel="noopener">
+        MELLA haqida
+      </a>
+    </div>
+    <script>
+      try {
+        const tg = window.Telegram && window.Telegram.WebApp;
+        if (tg) {
+          tg.ready();
+          tg.expand();
+          if (tg.setHeaderColor) tg.setHeaderColor("#180F0F");
+          if (tg.setBackgroundColor) tg.setBackgroundColor("#180F0F");
+        }
+      } catch (e) {}
+    </script>
+  </body>
+</html>
