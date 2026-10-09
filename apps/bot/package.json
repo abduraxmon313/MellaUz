@@ -2,18 +2,22 @@
   "name": "mella-bot",
   "version": "0.1.0",
   "private": true,
-  "description": "MELLA Telegram bot + Mini App backend (Fastify + grammY)",
+  "description": "MELLA Telegram botlari (mijoz + admin) va Mini App backend (Fastify + grammY + BILLZ)",
   "type": "module",
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "build": "tsc -p tsconfig.json",
     "start": "node dist/index.js",
-    "typecheck": "tsc --noEmit -p tsconfig.json"
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "fake-billz": "node scripts/fake-billz.mjs",
+    "smoke:billz": "BILLZ_API_URL=http://127.0.0.1:4555 BILLZ_SECRET_TOKEN=test-secret BILLZ_SHOP_IDS=aaaaaaaa-0000-0000-0000-000000000001 BILLZ_PUSH_SALES=true BILLZ_CASHBOX_ID=CB-1 BILLZ_PAYMENT_TYPE_CASH=PT-CASH tsx scripts/billz-smoke.ts",
+    "smoke:store": "tsx scripts/store-smoke.ts"
   },
   "dependencies": {
     "@fastify/static": "^10.1.5",
     "fastify": "^5.12.5",
-    "grammy": "^1.46.0"
+    "grammy": "^1.46.0",
+    "postgres": "^3.4.9"
   },
   "devDependencies": {
     "@types/node": "^24.19.1",
