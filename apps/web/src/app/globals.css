@@ -1,20 +1,29 @@
 @import "tailwindcss";
 
 /*
-  MELLA dizayn tizimi.
-  Brend palitrasi: Deep Espresso -> Gold -> Ivory.
+  MELLA dizayn tizimi — YORUG' (qaymoq) mavzu.
+  Token nomlari avvalgidek qoldirildi (komponentlar o'zgarmasin), lekin ROLI bo'yicha:
+    espresso       → asosiy fon (qaymoq)
+    dark-chocolate → karta/yuza (biroz to'qroq qaymoq)
+    chocolate      → rasm ortidagi fon
+    brown / mocha  → chegara va ajratgichlar (bej)
+    pearl          → asosiy matn (to'q jigarrang)
+    champagne      → urg'uli matn / havola (jigarrang)
+    gold           → aksent (bronza-oltin; logotipdan)
+    dark-gold      → to'q aksent
+    ivory          → oq yuza
 */
 @theme {
-  --color-espresso: #180f0f;
-  --color-dark-chocolate: #261918;
-  --color-chocolate: #382725;
-  --color-brown: #493833;
-  --color-mocha: #634b47;
-  --color-dark-gold: #97612c;
-  --color-gold: #d9a867;
-  --color-champagne: #f7d99c;
-  --color-pearl: #f2e8d0;
-  --color-ivory: #fcf8e5;
+  --color-espresso: #faf5ec;
+  --color-dark-chocolate: #f3eadb;
+  --color-chocolate: #ebdfca;
+  --color-brown: #dccab0;
+  --color-mocha: #c4ab8a;
+  --color-dark-gold: #7a4e24;
+  --color-gold: #9a6733;
+  --color-champagne: #5e3b20;
+  --color-pearl: #3a2416;
+  --color-ivory: #ffffff;
 
   --font-serif: var(--font-cormorant), Georgia, "Times New Roman", serif;
   --font-sans: var(--font-manrope), ui-sans-serif, system-ui, sans-serif;
@@ -46,7 +55,7 @@
 }
 
 :root {
-  color-scheme: dark;
+  color-scheme: light;
 }
 
 html {
@@ -77,12 +86,8 @@ body {
 
   /* Oltin градиент matn (sarlavha urg'ulari uchun) */
   .text-gradient-gold {
-    background: linear-gradient(
-      100deg,
-      var(--color-champagne) 0%,
-      var(--color-gold) 45%,
-      var(--color-dark-gold) 100%
-    );
+    /* Logotipdagi metall oltin — qaymoq fonda o'qilishi uchun to'qroq tonlar */
+    background: linear-gradient(100deg, #c8995a 0%, #a06c36 40%, #d4a865 62%, #7a4e24 100%);
     -webkit-background-clip: text;
     background-clip: text;
     color: transparent;
@@ -90,8 +95,8 @@ body {
 
   .shadow-luxe {
     box-shadow:
-      0 1px 0 0 rgba(247, 217, 156, 0.08) inset,
-      0 30px 60px -30px rgba(0, 0, 0, 0.8);
+      0 1px 0 0 rgba(255, 255, 255, 0.7) inset,
+      0 30px 60px -30px rgba(94, 59, 32, 0.35);
   }
 
   /* Hover payti sekin ko'tariladigan karta */
@@ -122,11 +127,11 @@ body {
     font-weight: 600;
     letter-spacing: 0.14em;
     text-transform: uppercase;
-    color: var(--color-espresso);
-    background: linear-gradient(110deg, var(--color-champagne), var(--color-gold) 55%, #c08a4a);
+    color: #fbf3e4;
+    background: linear-gradient(110deg, #4a2e1a, #6b4426 55%, #8a5c33);
     box-shadow:
-      0 0 0 1px rgba(247, 217, 156, 0.35) inset,
-      0 12px 30px -12px rgba(217, 168, 103, 0.55);
+      0 0 0 1px rgba(214, 170, 110, 0.35) inset,
+      0 12px 30px -12px rgba(74, 46, 26, 0.55);
     transition:
       transform 0.35s cubic-bezier(0.16, 1, 0.3, 1),
       box-shadow 0.35s ease;
@@ -136,15 +141,15 @@ body {
     position: absolute;
     inset: 0;
     z-index: -1;
-    background: linear-gradient(110deg, transparent 30%, rgba(255, 255, 255, 0.45) 50%, transparent 70%);
+    background: linear-gradient(110deg, transparent 30%, rgba(255, 236, 200, 0.28) 50%, transparent 70%);
     transform: translateX(-120%);
     transition: transform 0.8s ease;
   }
   .btn-gold:hover {
     transform: translateY(-2px);
     box-shadow:
-      0 0 0 1px rgba(247, 217, 156, 0.5) inset,
-      0 18px 40px -14px rgba(217, 168, 103, 0.75);
+      0 0 0 1px rgba(214, 170, 110, 0.5) inset,
+      0 18px 40px -14px rgba(74, 46, 26, 0.7);
   }
   .btn-gold:hover::after {
     transform: translateX(120%);
@@ -162,15 +167,15 @@ body {
     letter-spacing: 0.14em;
     text-transform: uppercase;
     color: var(--color-pearl);
-    border: 1px solid rgba(242, 232, 208, 0.25);
-    background: rgba(24, 15, 15, 0.25);
+    border: 1px solid rgba(94, 59, 32, 0.35);
+    background: rgba(255, 255, 255, 0.55);
     backdrop-filter: blur(8px);
     transition: all 0.35s ease;
   }
   .btn-ghost:hover {
     border-color: var(--color-gold);
     color: var(--color-champagne);
-    background: rgba(217, 168, 103, 0.08);
+    background: rgba(154, 103, 51, 0.08);
   }
 
   /* Oltin ingichka chegara (gradient border) */
@@ -183,7 +188,7 @@ body {
     inset: 0;
     border-radius: inherit;
     padding: 1px;
-    background: linear-gradient(140deg, rgba(247, 217, 156, 0.45), rgba(73, 56, 51, 0.15) 40%, rgba(217, 168, 103, 0.35));
+    background: linear-gradient(140deg, rgba(200, 153, 90, 0.55), rgba(196, 171, 138, 0.25) 40%, rgba(154, 103, 51, 0.45));
     -webkit-mask:
       linear-gradient(#000 0 0) content-box,
       linear-gradient(#000 0 0);

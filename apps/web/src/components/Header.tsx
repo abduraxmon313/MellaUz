@@ -61,7 +61,7 @@ export function Header({ dict, locale }: { dict: Dictionary; locale: Locale }) {
         <div
           className={`mx-auto flex h-16 max-w-7xl items-center justify-between rounded-full px-4 transition-all duration-500 sm:h-[72px] sm:px-6 ${
             solid
-              ? "border border-gold/15 bg-espresso/70 shadow-[0_10px_40px_-20px_rgba(0,0,0,0.9)] backdrop-blur-xl"
+              ? "border border-gold/15 bg-espresso/70 shadow-[0_10px_40px_-20px_rgba(94,59,32,0.35)] backdrop-blur-xl"
               : "border border-transparent bg-transparent"
           }`}
         >

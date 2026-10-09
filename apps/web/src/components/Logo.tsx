@@ -26,10 +26,10 @@ export function MellaEmblem({
     >
       <defs>
         <linearGradient id={grad} x1="300" y1="160" x2="740" y2="650" gradientUnits="userSpaceOnUse">
-          <stop offset="0" stopColor="#f7d99c" />
-          <stop offset="0.45" stopColor="#d9a867" />
-          <stop offset="0.75" stopColor="#f2cf8c" />
-          <stop offset="1" stopColor="#97612c" />
+          <stop offset="0" stopColor="#d9b06c" />
+          <stop offset="0.45" stopColor="#a86f37" />
+          <stop offset="0.75" stopColor="#e2bd7c" />
+          <stop offset="1" stopColor="#6e4520" />
         </linearGradient>
       </defs>
       <g stroke={`url(#${grad})`} strokeLinecap="round" strokeLinejoin="round">
