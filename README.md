@@ -13,7 +13,7 @@
 | Service | Papka | Vazifasi | Link (misol) |
 |---------|-------|----------|--------------|
 | **mella-web** | `apps/web` | Brend/marketing sayti: katalog, mahsulotlar, brend tarixi, buyurtma so‘rovi (lead) | `https://mella.uz` |
-| **mella-bot** | `apps/bot` | Telegram Sotuv bot + Mini App backend | `https://app.mella.uz` |
+| **mella-bot** | `apps/bot` | 2 ta Telegram bot (mijoz + admin) + Mini App (katalog, savat, buyurtma) | `https://app.mella.uz` |
 
 Sayt va bot **bir xil ERP ma’lumotlaridan** foydalanadi (mahsulot, narx, qoldiq),
 lekin ikki **alohida Railway service** va **alohida link** sifatida ishlaydi.
@@ -33,8 +33,8 @@ lekin ikki **alohida Railway service** va **alohida link** sifatida ishlaydi.
 | Monorepo | **pnpm workspaces** (`apps/*`) |
 | Sayt | **Next.js 16** (App Router), **React 19**, **Tailwind CSS v4**, **TypeScript** |
 | Bot | **Fastify 5** + **grammY** (webhook), **TypeScript** |
-| DB (bizniki) | **PostgreSQL** (buyurtma so‘rovlari) — `postgres` drayveri |
-| Katalog | **ERP API** (adapter orqali) yoki namuna (mock) ma’lumot |
+| DB (bizniki) | **PostgreSQL** (sayt so‘rovlari, bot buyurtmalari, mijozlar) — `postgres` drayveri |
+| Katalog | **BILLZ 2.0** (bot) / ERP adapter (sayt) yoki namuna (mock) ma’lumot |
 | Deploy | **Railway** (Railpack builder), Node.js 24 |
 
 ---
@@ -60,6 +60,40 @@ Kod → CatalogProvider (interfeys)
 
 ---
 
+## 🤖 Telegram botlar va Mini App (`apps/bot`)
+
+Ishlash tuzilmasi **Gunesh** Mini App'idan olingan, dizayn esa **MELLA sayti** bilan bir xil
+(espresso/oltin palitra, Cormorant Garamond + Manrope, MELLA emblemasi).
+
+**Mini App:** katalog (kategoriya, qidiruv, saralash) → mahsulot (rasm galereyasi,
+**o‘lcham tanlash**, qoldiq) → savat → 2 qadamli rasmiylashtirish (yetkazish/olib ketish,
+**Yandex xarita**, telefon, vaqt → to‘lov: **naqd**; Click “tez kunda”) → buyurtmalarim
+(holat chizig‘i) → profil (til, aloqa). UZ / RU / EN.
+
+**Mijoz boti:** `/start` → til → telefon → menyu (Do‘kon, Buyurtmalarim, Aloqa, Til).
+Buyurtma holati o‘zgarsa mijozga xabar boradi.
+
+**Admin bot:** yangi buyurtma kartasi barcha adminlarga keladi; tugmalar bilan
+Qabul → Qadoqlanmoqda → Yo‘lda → Yetkazildi (yoki sabab bilan rad/bekor). Karta hamma
+adminlarda birdan yangilanadi. Buyruqlar: `/orders`, `/new`, `/today`, `/sync`, `/billz`.
+
+**BILLZ:** katalog `GET /v2/products` dan har `BILLZ_SYNC_MINUTES` da yangilanadi
+(variatsiyalar → bitta karta + o‘lchamlar, aksiya narxi, do‘kon kesimidagi qoldiq,
+kategoriya daraxti). Rasmlar BILLZ qoidasiga ko‘ra **o‘z serverimizdan** (`/img/…`, DB keshi)
+beriladi. Narx va qoldiq buyurtmada serverda qayta tekshiriladi. `BILLZ_PUSH_SALES=true`
+bo‘lsa, yetkazilgan buyurtma BILLZ'ga sotuv sifatida o‘tkaziladi.
+
+Sozlash: `.env.example` dagi `mella-bot` bo‘limi. Lokal sinov:
+
+```bash
+pnpm --filter mella-bot dev            # tokensiz — namuna katalog, brauzerda ham buyurtma mumkin
+pnpm --filter mella-bot fake-billz     # soxta BILLZ server (:4555)
+pnpm --filter mella-bot smoke:billz    # BILLZ integratsiyasi testi (fake-billz yoqilgan holda)
+DATABASE_URL=postgres://… pnpm --filter mella-bot smoke:store
+```
+
+---
+
 ## 🚀 Railway'da ishga tushirish
 
 Railway JS monorepo'ni avtomatik taniydi va **har bir `apps/*` paketi uchun
@@ -70,15 +104,16 @@ alohida service** tayyorlaydi.
    `mella-bot`. Ikkalasini ham tasdiqlang. (Build/start buyruqlari va healthcheck
    har paketdagi `railway.json` dan o‘qiladi.)
 3. **PostgreSQL** plaginini qo‘shing — `DATABASE_URL` avtomatik ulanadi
-   (`mella-web` service'ga bog‘lang).
+   (`mella-web` va `mella-bot` service'lariga bog‘lang).
 4. Har bir service uchun kerakli **env**'larni qo‘ying (`.env.example` ga qarang).
 5. Har bir service'ga **domen** biriktiring (Settings → Networking → Generate
    Domain yoki o‘z domeningiz):
    - `mella-web` → `mella.uz`
    - `mella-bot` → `app.mella.uz`
-6. **Bot**: `BOT_CUSTOMER_TOKEN` qo‘yilsa, server start bo‘lganda webhook va
-   Mini App menyu tugmasi avtomatik o‘rnatiladi (`PUBLIC_URL`/Railway domeni
-   asosida). BotFather’da Mini App URL sifatida `mella-bot` domenini bering.
+6. **Botlar**: `BOT_CUSTOMER_TOKEN` va `BOT_ADMIN_TOKEN` qo‘yilsa, server start bo‘lganda
+   ikkala webhook va Mini App menyu tugmasi avtomatik o‘rnatiladi. Adminlar admin botga
+   `/start` yozib ID'sini oladi → `ADMIN_IDS` ga qo‘shiladi. BILLZ uchun `BILLZ_SECRET_TOKEN`
+   qo‘ying, admin botda `/billz` bilan do‘kon ID'larini olib `BILLZ_SHOP_IDS` ga yozing.
 
 > **Eslatma (monorepo):** service **Root Directory** bo‘sh (repo ildizi) bo‘lishi
 > kerak — shunda `pnpm-lock.yaml` va workspace to‘liq ko‘rinadi. Build/start
@@ -128,8 +163,9 @@ MellaUz/
 │  │  │  └─ proxy.ts           # til yo‘naltirish (middleware)
 │  │  └─ railway.json
 │  └─ bot/                     # Service 2: Telegram bot + Mini App (Fastify + grammY)
-│     ├─ src/                  # config, bot, server
-│     ├─ public/               # Mini App (placeholder)
+│     ├─ src/                  # server, api, bot (mijoz), admin/ (admin bot), billz/, catalog/, orders, store
+│     ├─ public/               # Mini App (index.html, app.js, styles.css)
+│     ├─ scripts/              # fake-billz, smoke testlar
 │     └─ railway.json
 ├─ pnpm-workspace.yaml
 ├─ package.json
@@ -140,14 +176,14 @@ MellaUz/
 
 ## 🗺 Keyingi bosqichlar
 
-- [ ] ERP API ulanishi (real `ErpCatalogProvider`).
-- [ ] Mini App to‘liq xarid oqimi (katalog, savat, buyurtma).
-- [ ] Admin bot: buyurtmalarni qabul/tasdiqlash, ERP qoldig‘ini kamaytirish.
+- [x] Mini App to‘liq xarid oqimi (katalog, savat, buyurtma) — BILLZ katalogi bilan.
+- [x] Admin bot: buyurtmalarni qabul/tasdiqlash, BILLZ'ga sotuv o‘tkazish (ixtiyoriy).
+- [ ] Saytni ham BILLZ katalogiga ulash (`ErpCatalogProvider` → BILLZ).
 - [ ] Click orqali onlayn to‘lov (sinovlardan so‘ng).
 
 ---
 
 🟢 **Holat:** premium sayt tayyor (UZ/RU/EN, katalog, mahsulot, aloqa, buyurtma
-so‘rovi) + bot/Mini App starter. Railway'da ikki service sifatida deploy'ga tayyor.
+so‘rovi) + mijoz/admin botlar va Mini App (BILLZ). Railway'da ikki service sifatida deploy'ga tayyor.
 
 > Namuna rasmlar manbasi: [`CREDITS.md`](CREDITS.md).

@@ -1,91 +1,207 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="uz">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <meta name="theme-color" content="#180F0F" />
-    <title>MELLA</title>
-    <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <style>
-      :root {
-        --espresso: #180f0f;
-        --chocolate: #382725;
-        --gold: #d9a867;
-        --champagne: #f7d99c;
-        --pearl: #f2e8d0;
-      }
-      * { box-sizing: border-box; margin: 0; padding: 0; }
-      body {
-        font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
-        background: radial-gradient(120% 100% at 50% 0%, #261918 0%, var(--espresso) 60%);
-        color: var(--pearl);
-        min-height: 100dvh;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        padding: 24px;
-        text-align: center;
-      }
-      .card { max-width: 420px; animation: fade 0.9s ease both; }
-      .brand {
-        font-family: Georgia, "Times New Roman", serif;
-        font-size: 44px;
-        letter-spacing: 0.42em;
-        padding-left: 0.42em;
-        color: var(--pearl);
-      }
-      .tagline {
-        margin-top: 10px;
-        font-size: 11px;
-        letter-spacing: 0.3em;
-        text-transform: uppercase;
-        color: var(--gold);
-      }
-      .line {
-        width: 48px; height: 1px; margin: 28px auto;
-        background: linear-gradient(90deg, transparent, var(--gold), transparent);
-      }
-      p.desc { color: rgba(242, 232, 208, 0.7); line-height: 1.6; font-size: 15px; }
-      .soon {
-        margin-top: 26px; display: inline-block; padding: 8px 18px;
-        border: 1px solid rgba(217, 168, 103, 0.4); border-radius: 999px;
-        font-size: 12px; letter-spacing: 0.1em; color: var(--champagne);
-      }
-      a.btn {
-        margin-top: 28px; display: inline-block; text-decoration: none;
-        background: var(--gold); color: var(--espresso); font-weight: 600;
-        padding: 13px 30px; border-radius: 999px; font-size: 13px;
-        letter-spacing: 0.08em; text-transform: uppercase; transition: background 0.3s;
-      }
-      a.btn:hover { background: var(--champagne); }
-      @keyframes fade { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: none; } }
-    </style>
-  </head>
-  <body>
-    <div class="card">
-      <div class="brand">MELLA</div>
-      <div class="tagline">Uslub · Sifat · Tajriba</div>
-      <div class="line"></div>
-      <p class="desc">
-        Do‘kon Mini App tez orada shu yerda ishga tushadi — katalog, savat va
-        buyurtma berish imkoniyati bilan.
-      </p>
-      <div class="soon">Tez kunda</div>
-      <br />
-      <a class="btn" id="site" href="https://www.instagram.com/mella_uz/" target="_blank" rel="noopener">
-        MELLA haqida
-      </a>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <!-- Yuza rangi: app.js dagi THEME_BG va CSS --bg (#180f0f) bilan bir xil. -->
+  <meta name="theme-color" content="#180f0f" />
+  <title>MELLA</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=Manrope:wght@400;500;600;700;800&display=swap&subset=cyrillic,latin" rel="stylesheet" />
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <link rel="stylesheet" href="/styles.css?v=1" />
+</head>
+<body>
+  <!-- MELLA emblemasi (stiletto) — bir marta aniqlanadi, keyin <use> bilan qayta ishlatiladi. -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <defs>
+      <linearGradient id="mellaGold" x1="300" y1="160" x2="740" y2="650" gradientUnits="userSpaceOnUse">
+        <stop offset="0" stop-color="#f7d99c" />
+        <stop offset="0.45" stop-color="#d9a867" />
+        <stop offset="0.75" stop-color="#f2cf8c" />
+        <stop offset="1" stop-color="#97612c" />
+      </linearGradient>
+      <symbol id="mellaEmblem" viewBox="300 160 440 490">
+        <g fill="none" stroke="url(#mellaGold)" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M412 178c18 22 52 40 98 52 48 13 72 36 62 64-6 17-20 25-34 27" stroke-width="13" />
+          <path d="M424 292c30-14 76-8 114 12 30 16 40 40 26 66" stroke-width="11" />
+          <path d="M336 306c56-12 118 6 170 36 38 22 46 56 42 122" stroke-width="8" />
+          <path d="M318 300c84 18 136 74 162 166 20 72 28 128 50 164" stroke-width="15" />
+          <path d="M352 318c66 26 104 84 124 168" stroke-width="3.5" opacity=".75" />
+          <path d="M368 352c8 70 16 150 22 250" stroke-width="8" />
+          <path d="M390 602l-2 16" stroke-width="4" opacity=".7" />
+          <path d="M530 630c64-2 128-12 194-28" stroke-width="9" />
+          <path d="M546 616c56-2 108-8 156-14" stroke-width="3" opacity=".7" />
+        </g>
+      </symbol>
+    </defs>
+  </svg>
+
+  <!-- Splash: emblema "chizilib" chiqadi -->
+  <div id="splash" class="splash">
+    <div class="splash-inner">
+      <svg class="splash-emblem" viewBox="300 160 440 490" fill="none" stroke="url(#mellaGold)" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M412 178c18 22 52 40 98 52 48 13 72 36 62 64-6 17-20 25-34 27" stroke-width="13" />
+        <path d="M424 292c30-14 76-8 114 12 30 16 40 40 26 66" stroke-width="11" />
+        <path d="M336 306c56-12 118 6 170 36 38 22 46 56 42 122" stroke-width="8" />
+        <path d="M318 300c84 18 136 74 162 166 20 72 28 128 50 164" stroke-width="15" />
+        <path d="M368 352c8 70 16 150 22 250" stroke-width="8" />
+        <path d="M530 630c64-2 128-12 194-28" stroke-width="9" />
+      </svg>
+      <div class="splash-word text-gold">Mella</div>
+      <div class="splash-tag">Uslub · Sifat · Tajriba</div>
+      <div class="spinner"></div>
     </div>
-    <script>
-      try {
-        const tg = window.Telegram && window.Telegram.WebApp;
-        if (tg) {
-          tg.ready();
-          tg.expand();
-          if (tg.setHeaderColor) tg.setHeaderColor("#180F0F");
-          if (tg.setBackgroundColor) tg.setBackgroundColor("#180F0F");
-        }
-      } catch (e) {}
-    </script>
-  </body>
+  </div>
+
+  <main id="app">
+    <!-- ═══ HOME ═══ -->
+    <section id="view-home" class="view active">
+      <header class="topbar">
+        <div class="tb-brand">
+          <svg class="tb-emblem"><use href="#mellaEmblem" /></svg>
+          <div class="tb-text">
+            <span class="tb-word text-gold">Mella</span>
+            <span class="tb-eyebrow" data-i18n="brand_tagline">Uslub · Sifat · Tajriba</span>
+          </div>
+        </div>
+        <div class="tb-actions">
+          <button class="tb-icon" id="tbFav" aria-label="Sevimlilar" data-i18n-aria="favorites_title">
+            <span data-ic="heart"></span>
+            <b id="favBadge" class="badge" hidden>0</b>
+          </button>
+        </div>
+      </header>
+
+      <div class="home-scroll">
+        <div class="searchbar">
+          <span data-ic="search" class="sb-ic"></span>
+          <input type="text" id="searchInput" placeholder="Qidirish…" data-i18n-ph="search" autocomplete="off" enterkeyhint="search" />
+          <button class="sb-clear" id="searchClear" hidden aria-label="Tozalash"><span data-ic="x"></span></button>
+        </div>
+
+        <div id="heroWrap"></div>
+
+        <div class="promise-row">
+          <span class="promise"><span data-ic="sparkles"></span><span data-i18n="pr_leather">Tabiiy charm</span></span>
+          <span class="promise"><span data-ic="truck"></span><span data-i18n="pr_delivery">Yetkazib berish</span></span>
+          <span class="promise"><span data-ic="shield"></span><span data-i18n="pr_quality">Sifat kafolati</span></span>
+          <span class="promise"><span data-ic="cash"></span><span data-i18n="pr_cash">Qabul qilganda to‘lov</span></span>
+        </div>
+
+        <div id="catWrap" class="cat-wrap">
+          <div id="categories" class="cat-strip"></div>
+        </div>
+        <div id="sortbar" class="sortbar"></div>
+
+        <div class="section-head">
+          <h2 class="section-title" id="productsTitle" data-i18n="collection">Kolleksiya</h2>
+          <span class="section-count" id="productsCount" hidden></span>
+        </div>
+
+        <div id="products" class="grid"></div>
+        <div id="emptyProducts" class="empty" hidden>
+          <div class="empty-ic"><span data-ic="bag"></span></div>
+          <p data-i18n="no_products">Mahsulot topilmadi</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══ CART ═══ -->
+    <section id="view-cart" class="view">
+      <header class="page-head">
+        <h1 data-i18n="cart_title">Savat</h1>
+        <p class="page-sub" id="cartSub" hidden></p>
+      </header>
+      <div id="cartItems" class="cart-items"></div>
+      <div id="cartEmpty" class="empty" hidden>
+        <div class="empty-ic"><span data-ic="bag"></span></div>
+        <p data-i18n="cart_empty">Savat bo‘sh</p>
+        <button class="btn btn-ghost btn-sm" id="emptyGoShop" data-i18n="start_shopping">Kolleksiyani ko‘rish</button>
+      </div>
+      <div id="cartFooter" class="cart-footer"></div>
+    </section>
+
+    <!-- ═══ FAVORITES ═══ -->
+    <section id="view-favorites" class="view">
+      <header class="page-head with-back">
+        <button class="head-back" id="favBack" aria-label="Orqaga"><span data-ic="arrowLeft"></span></button>
+        <div class="head-text">
+          <h1 data-i18n="favorites_title">Sevimlilar</h1>
+          <p class="page-sub" data-i18n="favorites_sub">Yoqqan mahsulotlaringiz</p>
+        </div>
+      </header>
+      <div class="home-scroll">
+        <div id="favProducts" class="grid"></div>
+        <div id="emptyFav" class="empty" hidden>
+          <div class="empty-ic"><span data-ic="heart"></span></div>
+          <p data-i18n="no_favorites">Sevimlilar hali bo‘sh</p>
+          <button class="btn btn-ghost btn-sm" id="favGoShop" data-i18n="start_shopping">Kolleksiyani ko‘rish</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══ ORDERS ═══ -->
+    <section id="view-orders" class="view">
+      <header class="page-head"><h1 data-i18n="orders_title">Buyurtmalarim</h1></header>
+      <div id="ordersList" class="orders-list"></div>
+      <div id="emptyOrders" class="empty" hidden>
+        <div class="empty-ic"><span data-ic="receipt"></span></div>
+        <p data-i18n="no_orders">Hali buyurtmalar yo‘q</p>
+        <button class="btn btn-ghost btn-sm" id="ordersGoShop" data-i18n="start_shopping">Kolleksiyani ko‘rish</button>
+      </div>
+    </section>
+
+    <!-- ═══ PROFILE ═══ -->
+    <section id="view-profile" class="view">
+      <header class="page-head"><h1 data-i18n="profile_title">Profil</h1></header>
+      <div id="profileContent"></div>
+    </section>
+  </main>
+
+  <!-- Mahsulot -->
+  <div id="sheetProduct" class="sheet">
+    <div class="sheet-backdrop" data-close></div>
+    <div class="sheet-card"><div class="sheet-handle"></div><div id="productContent"></div></div>
+  </div>
+
+  <!-- Buyurtma tafsilotlari -->
+  <div id="sheetOrder" class="sheet">
+    <div class="sheet-backdrop" data-close></div>
+    <div class="sheet-card tall"><div class="sheet-handle"></div><div id="orderContent"></div></div>
+  </div>
+
+  <!-- Rasmiylashtirish -->
+  <div id="sheetCheckout" class="sheet">
+    <div class="sheet-backdrop" data-close></div>
+    <div class="sheet-card tall">
+      <div class="sheet-handle"></div>
+      <h2 class="sheet-title" id="checkoutTitle" data-i18n="checkout_title">Buyurtmani rasmiylashtirish</h2>
+      <div id="checkoutContent"></div>
+    </div>
+  </div>
+
+  <!-- Suzuvchi savat paneli -->
+  <button id="fabCart" class="fab-cart" type="button">
+    <span class="fc-ic"><span data-ic="bag"></span><b class="fc-count" id="fabCount">0</b></span>
+    <span class="fc-text">
+      <span class="fc-label" data-i18n="in_cart">Savatda</span>
+      <span class="fc-total" id="fabTotal">0</span>
+    </span>
+    <span class="fc-go"><span data-i18n="view_cart">Ko‘rish</span><span data-ic="arrowRight"></span></span>
+  </button>
+
+  <!-- Pastki navigatsiya -->
+  <nav class="bottom-nav">
+    <button class="nav-item active" data-nav="home"><span data-ic="home"></span><small data-i18n="nav_home">Asosiy</small></button>
+    <button class="nav-item" data-nav="cart"><span data-ic="bag"></span><small data-i18n="nav_cart">Savat</small><b id="navCartBadge" class="badge" hidden>0</b></button>
+    <button class="nav-item" data-nav="orders"><span data-ic="receipt"></span><small data-i18n="nav_orders">Buyurtmalar</small></button>
+    <button class="nav-item" data-nav="profile"><span data-ic="user"></span><small data-i18n="nav_profile">Profil</small></button>
+  </nav>
+
+  <div id="toast" class="toast"></div>
+  <script src="/app.js?v=1"></script>
+</body>
 </html>
