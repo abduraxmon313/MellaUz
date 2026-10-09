@@ -13,6 +13,23 @@
  */
 import { spawn } from "node:child_process";
 import process from "node:process";
+import { cpSync, existsSync } from "node:fs";
+import path from "node:path";
+
+function ensureStandaloneAssets(appDir) {
+  const target = path.join(appDir, ".next/standalone/apps/web");
+  if (!existsSync(target)) return;
+  const pairs = [
+    [path.join(appDir, ".next/static"), path.join(target, ".next/static")],
+    [path.join(appDir, "public"), path.join(target, "public")],
+  ];
+  for (const [from, to] of pairs) {
+    if (existsSync(from) && !existsSync(to)) {
+      cpSync(from, to, { recursive: true });
+      console.log(`railway-dispatch: ${from} → ${to} nusxalandi`);
+    }
+  }
+}
 
 const task = process.argv[2];
 if (task !== "build" && task !== "start") {
@@ -40,7 +57,10 @@ if (task === "build") {
     args = ["dist/index.js"];
     cwd = "apps/bot";
   } else {
-    // standalone output mode: .next/standalone/apps/web/server.js da ishga tushadi
+    // standalone output mode: .next/standalone/apps/web/server.js da ishga tushadi.
+    // Xavfsizlik: build bosqichida CSS/JS (.next/static) va public/ nusxalanmagan
+    // bo'lsa — shu yerda nusxalaymiz (aks holda sayt CSS'siz, oppoq ochiladi).
+    ensureStandaloneAssets("apps/web");
     cmd = process.execPath;
     args = [".next/standalone/apps/web/server.js"];
     cwd = "apps/web";
