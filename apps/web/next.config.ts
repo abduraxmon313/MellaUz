@@ -30,6 +30,11 @@ const nextConfig: NextConfig = {
     qualities: [70, 80, 90],
     remotePatterns: erpImagePatterns(),
   },
+  experimental: {
+    // Railway build keshi bilan Turbopack disk keshi CSS'ni eskicha qoldirgan
+    // (yangi ranglar deploy bo'lmagan). Production build har safar toza bo'lsin.
+    turbopackFileSystemCacheForBuild: false,
+  },
   turbopack: {
     rules: {
       "*.css": {
