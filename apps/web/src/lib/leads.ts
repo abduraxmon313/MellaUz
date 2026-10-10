@@ -1,6 +1,6 @@
 import "server-only";
 
-import postgres from "postgres";
+import { primaryDb, type Sql } from "./db";
 import type { Locale } from "@/i18n/config";
 
 export interface LeadInput {
@@ -13,23 +13,11 @@ export interface LeadInput {
 }
 
 // ── Postgres (bizning DB — buyurtma so'rovlari shu yerda saqlanadi) ──
-let sql: ReturnType<typeof postgres> | null = null;
+// Ulanish lib/db.ts da (Railway ichki tarmog'i uchun to'g'ri SSL sozlamasi bilan).
 let schemaReady = false;
+const db = primaryDb;
 
-function db() {
-  const url = process.env.DATABASE_URL;
-  if (!url) return null;
-  if (!sql) {
-    sql = postgres(url, {
-      ssl: url.includes("localhost") ? false : "require",
-      max: 3,
-      idle_timeout: 20,
-    });
-  }
-  return sql;
-}
-
-async function ensureSchema(client: ReturnType<typeof postgres>) {
+async function ensureSchema(client: Sql) {
   if (schemaReady) return;
   await client`
     CREATE TABLE IF NOT EXISTS leads (

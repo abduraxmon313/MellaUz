@@ -1,6 +1,7 @@
 import { config } from "../config.js";
 import { store, type Order } from "../store.js";
 import { billz, BillzError } from "./client.js";
+import { isManualId } from "../catalog/index.js";
 
 /**
  * Yetkazilgan buyurtmani BILLZ'da SOTUV sifatida o'tkazish (ixtiyoriy,
@@ -47,6 +48,10 @@ export async function pushSaleToBillz(order: Order): Promise<{ id?: string; erro
   if (!shopId || !b.cashboxId || !paymentType) {
     return { error: "BILLZ_SALE_SHOP_ID / BILLZ_CASHBOX_ID / BILLZ_PAYMENT_TYPE_CASH sozlanmagan" };
   }
+  // Sayt admin panelida qo'lda kiritilgan mahsulotlar BILLZ'da yo'q — ularni o'tkazmaymiz.
+  const billzItems = order.items.filter((it) => !isManualId(it.variantId));
+  if (billzItems.length === 0) return {};
+  const expectedTotal = billzItems.reduce((sum, it) => sum + it.lineTotal, 0);
   // Takroriy o'tkazishdan himoya.
   const fresh = await store.getOrder(order.id);
   if (fresh?.billzDone) return { id: fresh.billzOrderId };
@@ -66,7 +71,7 @@ export async function pushSaleToBillz(order: Order): Promise<{ id?: string; erro
     // UUID darhol saqlanadi (keyingi qadam yiqilsa ham bog'lanish yo'qolmasin).
     await store.updateOrder(order.id, { billzOrderId: saleId });
 
-    for (const it of order.items) {
+    for (const it of billzItems) {
       await billz(`/v2/order-product/${saleId}`, {
         method: "POST",
         asyncHttp: true,
@@ -87,16 +92,16 @@ export async function pushSaleToBillz(order: Order): Promise<{ id?: string; erro
     // mijoz to'lagan summani yakuniy narx sifatida belgilaymiz.
     const bill = await billz<{ total_price?: number }>(`/v1/recalculate-order-bill/${saleId}`, { method: "POST" });
     let total = Math.round(Number(bill.total_price ?? 0));
-    if (total > 0 && total !== order.itemsTotal) {
+    if (total > 0 && total !== expectedTotal) {
       await billz(`/v2/order-manual-discount/${saleId}`, {
         method: "POST",
         asyncHttp: true,
-        body: { discount_unit: "CURRENCY", discount_value: order.itemsTotal },
+        body: { discount_unit: "CURRENCY", discount_value: expectedTotal },
       });
       const again = await billz<{ total_price?: number }>(`/v1/recalculate-order-bill/${saleId}`, { method: "POST" });
-      total = Math.round(Number(again.total_price ?? order.itemsTotal));
+      total = Math.round(Number(again.total_price ?? expectedTotal));
     }
-    if (!total) total = order.itemsTotal;
+    if (!total) total = expectedTotal;
 
     await billz(`/v2/order-payment/${saleId}`, {
       method: "POST",

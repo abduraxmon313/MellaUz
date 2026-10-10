@@ -17,6 +17,10 @@ import craftImg from "@/assets/images/craft-hands.jpg";
 import leatherImg from "@/assets/images/leather-texture.jpg";
 import { ArrowIcon } from "@/components/ArrowIcon";
 
+
+// Admin panelda qo'shilgan mahsulotlar: saqlanganda darhol, aks holda ko'pi bilan 60 soniyada yangilanadi.
+export const revalidate = 60;
+
 export default async function HomePage({
   params,
 }: {

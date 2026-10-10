@@ -3,6 +3,8 @@ import { config, hasBillz } from "../config.js";
 import { store } from "../store.js";
 import { syncFromBillz } from "../billz/catalog.js";
 import { buildMockSnapshot } from "./mock.js";
+import { categories as mockCategories } from "./mock-source.js";
+import type { ManualRow } from "../store.js";
 import type { CatalogSnapshot, Lang, Localized, Product, Variant } from "./types.js";
 
 /**
@@ -13,8 +15,14 @@ import type { CatalogSnapshot, Lang, Localized, Product, Variant } from "./types
  */
 
 const KV_SNAPSHOT = "catalog_snapshot";
+const MANUAL_REFRESH_MS = 30_000;
 
-let snapshot: CatalogSnapshot = buildMockSnapshot();
+/** Asosiy katalog (BILLZ yoki namuna). */
+let baseSnapshot: CatalogSnapshot = buildMockSnapshot();
+/** Mijozga ko'rsatiladigan katalog = qo'lda kiritilganlar + asosiy. */
+let snapshot: CatalogSnapshot = baseSnapshot;
+let manual: { products: Product[]; hideSamples: boolean } = { products: [], hideSamples: false };
+let manualError = "";
 let lastError = "";
 let syncing: Promise<void> | null = null;
 let timer: NodeJS.Timeout | null = null;
@@ -49,12 +57,84 @@ export function loc(v: Localized, lang: Lang): string {
 
 export function catalogStatus() {
   return {
-    source: snapshot.source,
-    syncedAt: snapshot.syncedAt,
+    source: baseSnapshot.source,
+    syncedAt: baseSnapshot.syncedAt,
     products: snapshot.products.length,
     categories: snapshot.categories.length,
+    manualProducts: manual.products.length,
+    hideSamples: manual.hideSamples,
     lastError,
+    manualError,
   };
+}
+
+// ── Qo'lda kiritilgan mahsulotlar (sayt /admin) ────────────────
+/** Qo'lda kiritilgan variant ID'lari "m-" bilan boshlanadi — BILLZ'ga yuborilmaydi. */
+export function isManualId(id: string) {
+  return id.startsWith("m-");
+}
+
+function manualToProduct(m: ManualRow): Product {
+  const description: Record<string, string> = {};
+  for (const l of ["uz", "ru", "en"] as const) {
+    const d = m.description[l] || m.description.uz || "";
+    const mat = m.material?.[l] || m.material?.uz || "";
+    description[l] = mat ? `${d}\n\n${mat}` : d;
+  }
+  const variants: Variant[] = m.sizes.length
+    ? m.sizes.map((s) => ({
+        id: `${m.id}~${s.label}`,
+        label: s.label,
+        sku: `${m.sku}-${s.label}`,
+        barcode: "",
+        price: m.price,
+        oldPrice: m.oldPrice,
+        stock: Math.max(0, s.stock),
+      }))
+    : [{ id: m.id, label: "", sku: m.sku, barcode: "", price: m.price, oldPrice: m.oldPrice, stock: Math.max(0, m.stock) }];
+  return {
+    id: m.id,
+    name: m.name,
+    description,
+    brand: "MELLA",
+    sku: m.sku,
+    categoryIds: [m.category],
+    images: m.imageIds.map((id) => `/media/${id}`),
+    variants,
+    attributeNames: m.sizes.length ? ["O'lcham"] : [],
+    featured: m.featured,
+    updatedAt: m.updatedAt,
+  };
+}
+
+function rebuildSnapshot() {
+  // "Namunalarni yashirish" faqat namuna katalogga tegishli; BILLZ — haqiqiy ma'lumot.
+  const hideBase = manual.hideSamples && baseSnapshot.source === "mock";
+  const products = [...manual.products, ...(hideBase ? [] : baseSnapshot.products)];
+  const categories = [...baseSnapshot.categories];
+  // Qo'lda kiritilgan kategoriya asosiy katalogda bo'lmasa (masalan BILLZ) — nomini qo'shamiz.
+  for (const p of manual.products) {
+    for (const id of p.categoryIds) {
+      if (categories.some((c) => c.id === id)) continue;
+      const mc = mockCategories.find((c) => c.slug === id);
+      categories.push({ id, name: mc ? mc.name : id, order: mc ? mc.order : 99 });
+    }
+  }
+  categories.sort((a, b) => a.order - b.order);
+  snapshot = { ...baseSnapshot, categories, products };
+  rebuildImageMap();
+}
+
+export async function refreshManual(): Promise<void> {
+  try {
+    const res = await store.listManualProducts();
+    manual = { products: res.products.map(manualToProduct), hideSamples: res.hideSamples };
+    manualError = "";
+    rebuildSnapshot();
+  } catch (e) {
+    manualError = (e as Error).message;
+    console.warn("[catalog] qo'lda kiritilgan mahsulotlar o'qilmadi:", manualError);
+  }
 }
 
 export async function syncNow(): Promise<void> {
@@ -65,11 +145,11 @@ export async function syncNow(): Promise<void> {
     try {
       const next = await syncFromBillz();
       // Xavfsizlik: avvalgi katalog katta bo'lib, yangisi bo'sh kelsa — qo'llamaymiz.
-      if (next.products.length === 0 && snapshot.source === "billz" && snapshot.products.length > 0) {
+      if (next.products.length === 0 && baseSnapshot.source === "billz" && baseSnapshot.products.length > 0) {
         throw new Error("BILLZ bo'sh katalog qaytardi — avvalgi nusxa saqlab qolindi");
       }
-      snapshot = next;
-      rebuildImageMap();
+      baseSnapshot = next;
+      rebuildSnapshot();
       lastError = "";
       await store.kvSet(KV_SNAPSHOT, next).catch((e) => console.warn("[catalog] snapshot saqlanmadi:", e.message));
       console.log(`[catalog] BILLZ: ${next.products.length} mahsulot, ${next.categories.length} kategoriya (${Date.now() - t0} ms)`);
@@ -83,17 +163,24 @@ export async function syncNow(): Promise<void> {
   return syncing;
 }
 
+let manualTimer: NodeJS.Timeout | null = null;
+
 export async function initCatalog() {
+  // Sayt admin panelida qo'shilgan mahsulotlar — har 30 soniyada bazadan yangilanadi.
+  await refreshManual();
+  manualTimer = setInterval(() => void refreshManual(), MANUAL_REFRESH_MS);
+  manualTimer.unref();
+
   if (!hasBillz) {
     console.log("[catalog] BILLZ_SECRET_TOKEN yo'q — namuna (mock) katalog ishlatiladi.");
-    rebuildImageMap();
+    rebuildSnapshot();
     return;
   }
   try {
     const saved = await store.kvGet<CatalogSnapshot>(KV_SNAPSHOT);
     if (saved && saved.source === "billz" && Array.isArray(saved.products)) {
-      snapshot = saved;
-      rebuildImageMap();
+      baseSnapshot = saved;
+      rebuildSnapshot();
       console.log(`[catalog] saqlangan BILLZ nusxasi yuklandi (${saved.products.length} ta, ${saved.syncedAt})`);
     }
   } catch (e) {

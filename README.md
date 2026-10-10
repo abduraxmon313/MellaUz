@@ -187,3 +187,29 @@ MellaUz/
 so‘rovi) + mijoz/admin botlar va Mini App (BILLZ). Railway'da ikki service sifatida deploy'ga tayyor.
 
 > Namuna rasmlar manbasi: [`CREDITS.md`](CREDITS.md).
+
+
+---
+
+## 🛠 /admin — mahsulotlarni qo‘lda kiritish (vaqtinchalik)
+
+ERP ulanguncha mahsulotlar sayt admin panelida qo‘lda kiritiladi: **rasmlar, nomi (UZ/RU/EN), tavsifi,
+materiali, kategoriyasi, narxi / eski narxi, o‘lchamlari va har o‘lcham qoldig‘i**. Qo‘shilgan mahsulot
+**saytda va Mini App’da** ko‘rinadi. Rasmlar **PostgreSQL’da** (BYTEA) saqlanadi.
+
+**Railway sozlash:**
+
+| Servis | O‘zgaruvchi | Qiymat |
+|--------|-------------|--------|
+| mella-web | `DATABASE_URL` | sayt Postgres’i (`${{Postgres-web.DATABASE_URL}}`) |
+| mella-web | `BOT_DATABASE_URL` | bot Postgres’i (`${{Postgres-bot.DATABASE_URL}}`) |
+| mella-web | `ADMIN_PASSWORD` | admin panel paroli |
+| mella-bot | `DATABASE_URL` | bot Postgres’i |
+
+- Admin saqlaganda mahsulot **ikkala bazaga** yoziladi: sayt o‘z bazasidan, Mini App o‘z bazasidan o‘qiydi.
+- Sayt darhol yangilanadi; Mini App ~30 soniyada yangilanadi.
+- Bot bazasiga yozilmay qolsa (masalan, keyin ulangan bo‘lsa) — panelda **“Mini App bilan sinxronlash”**.
+- **“Namuna (demo) mahsulotlarni yashirish”** — saytda va Mini App’da faqat qo‘lda kiritilganlar qoladi
+  (BILLZ mahsulotlariga ta’sir qilmaydi).
+- Qo‘lda kiritilgan mahsulot buyurtmalari BILLZ’ga sotuv sifatida o‘tkazilmaydi.
+- Jadvallar avtomatik yaratiladi: `manual_products`, `manual_product_images`, `manual_settings`.

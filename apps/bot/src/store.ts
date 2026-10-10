@@ -97,6 +97,29 @@ export interface Media {
   data: Buffer;
 }
 
+/**
+ * Sayt admin panelida qo'lda kiritilgan mahsulot (vaqtinchalik, ERP ulanguncha).
+ * Sayt uni shu bazaga ham yozadi (BOT_DATABASE_URL); bot faqat o'qiydi.
+ * Jadval tuzilmasi apps/web/src/lib/manual-catalog.ts bilan bir xil.
+ */
+export interface ManualRow {
+  id: string;
+  slug: string;
+  sku: string;
+  category: string;
+  name: Record<string, string>;
+  description: Record<string, string>;
+  material: Record<string, string> | null;
+  price: number;
+  oldPrice: number | null;
+  sizes: { label: string; stock: number }[];
+  stock: number;
+  featured: boolean;
+  imageIds: string[];
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface Store {
   kind: "postgres" | "memory";
   init(): Promise<void>;
@@ -120,6 +143,10 @@ export interface Store {
 
   kvGet<T = unknown>(key: string): Promise<T | null>;
   kvSet(key: string, value: unknown): Promise<void>;
+
+  /** Chop etilgan qo'lda kiritilgan mahsulotlar + "namunalarni yashirish" sozlamasi. */
+  listManualProducts(): Promise<{ products: ManualRow[]; hideSamples: boolean }>;
+  getManualImage(id: string): Promise<Media | null>;
 }
 
 const nowIso = () => new Date().toISOString();
@@ -227,6 +254,13 @@ class MemoryStore implements Store {
   async kvSet(key: string, value: unknown) {
     this.kv.set(key, value);
   }
+
+  async listManualProducts() {
+    return { products: [], hideSamples: false };
+  }
+  async getManualImage() {
+    return null;
+  }
 }
 
 // ═════════════════════════════════════════════════════════════
@@ -328,6 +362,46 @@ class PgStore implements Store {
         value JSONB NOT NULL,
         updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
       )`;
+    // Qo'lda kiritilgan katalog (sayt admin paneli yozadi) — sxema sayt bilan bir xil.
+    // Sayt ham shu bazada jadval yaratadi — bir xil advisory lock bilan navbatlashamiz.
+    await sql.begin(async (tx) => {
+      const t = tx as unknown as postgres.Sql;
+      await t`SELECT pg_advisory_xact_lock(774210001)`;
+      await t`
+        CREATE TABLE IF NOT EXISTS manual_products (
+          id          TEXT PRIMARY KEY,
+          slug        TEXT NOT NULL UNIQUE,
+          sku         TEXT NOT NULL,
+          category    TEXT NOT NULL,
+          name        JSONB NOT NULL,
+          description JSONB NOT NULL,
+          material    JSONB,
+          price       BIGINT NOT NULL DEFAULT 0,
+          old_price   BIGINT,
+          sizes       JSONB NOT NULL DEFAULT '[]'::jsonb,
+          stock       INTEGER NOT NULL DEFAULT 0,
+          featured    BOOLEAN NOT NULL DEFAULT false,
+          published   BOOLEAN NOT NULL DEFAULT true,
+          created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+          updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+        )`;
+      await t`
+        CREATE TABLE IF NOT EXISTS manual_product_images (
+          id           TEXT PRIMARY KEY,
+          product_id   TEXT NOT NULL REFERENCES manual_products(id) ON DELETE CASCADE,
+          position     INTEGER NOT NULL DEFAULT 0,
+          content_type TEXT NOT NULL,
+          data         BYTEA NOT NULL,
+          created_at   TIMESTAMPTZ NOT NULL DEFAULT now()
+        )`;
+      await t`CREATE INDEX IF NOT EXISTS manual_product_images_product_idx ON manual_product_images (product_id, position)`;
+      await t`
+        CREATE TABLE IF NOT EXISTS manual_settings (
+          key        TEXT PRIMARY KEY,
+          value      JSONB NOT NULL,
+          updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+        )`;
+    });
   }
 
   async close() {
@@ -439,6 +513,45 @@ class PgStore implements Store {
     await this.sql`
       INSERT INTO kv (key, value) VALUES (${key}, ${this.sql.json(value as postgres.JSONValue)})
       ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = now()`;
+  }
+
+  async listManualProducts() {
+    const rows = await this.sql`SELECT * FROM manual_products WHERE published ORDER BY created_at DESC`;
+    const imgs = rows.length
+      ? await this.sql`
+          SELECT id, product_id FROM manual_product_images
+          WHERE product_id IN ${this.sql(rows.map((r) => String(r.id)))} ORDER BY position, created_at`
+      : [];
+    const byProduct = new Map<string, string[]>();
+    for (const i of imgs) {
+      const list = byProduct.get(String(i.product_id)) ?? [];
+      list.push(String(i.id));
+      byProduct.set(String(i.product_id), list);
+    }
+    const [setting] = await this.sql`SELECT value FROM manual_settings WHERE key = 'hide_samples'`;
+    const products: ManualRow[] = rows.map((r) => ({
+      id: String(r.id),
+      slug: String(r.slug),
+      sku: String(r.sku),
+      category: String(r.category),
+      name: (r.name ?? {}) as Record<string, string>,
+      description: (r.description ?? {}) as Record<string, string>,
+      material: (r.material ?? null) as Record<string, string> | null,
+      price: Number(r.price),
+      oldPrice: r.old_price == null ? null : Number(r.old_price),
+      sizes: Array.isArray(r.sizes) ? (r.sizes as ManualRow["sizes"]) : [],
+      stock: Number(r.stock),
+      featured: Boolean(r.featured),
+      imageIds: byProduct.get(String(r.id)) ?? [],
+      createdAt: new Date(r.created_at as string).toISOString(),
+      updatedAt: new Date(r.updated_at as string).toISOString(),
+    }));
+    return { products, hideSamples: setting ? setting.value === true : false };
+  }
+
+  async getManualImage(id: string) {
+    const [r] = await this.sql`SELECT content_type, data FROM manual_product_images WHERE id = ${id}`;
+    return r ? { key: id, contentType: String(r.content_type), data: Buffer.from(r.data as Uint8Array) } : null;
   }
 }
 

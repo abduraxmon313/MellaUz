@@ -88,6 +88,7 @@ const en: Dictionary = {
     materials: "Material",
     related: "Related pieces",
     notFound: "Product not found",
+    sizes: "Sizes",
     sizeNote: "Confirm size and colour with our operator.",
   },
   about: {

@@ -86,6 +86,7 @@ const uz = {
     materials: "Material",
     related: "O‘xshash mahsulotlar",
     notFound: "Mahsulot topilmadi",
+    sizes: "O‘lchamlar",
     sizeNote: "O‘lcham va rang bo‘yicha operator bilan maslahatlashing.",
   },
   about: {

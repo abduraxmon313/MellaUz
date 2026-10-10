@@ -88,6 +88,7 @@ const ru: Dictionary = {
     materials: "Материал",
     related: "Похожие изделия",
     notFound: "Товар не найден",
+    sizes: "Размеры",
     sizeNote: "Уточните размер и цвет у оператора.",
   },
   about: {

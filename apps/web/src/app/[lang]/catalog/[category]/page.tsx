@@ -10,6 +10,10 @@ import { Reveal } from "@/components/Reveal";
 import { PageHeader } from "@/components/PageHeader";
 import { CategoryFilter } from "@/components/CategoryFilter";
 
+
+// Admin panelda qo'shilgan mahsulotlar: saqlanganda darhol, aks holda ko'pi bilan 60 soniyada yangilanadi.
+export const revalidate = 60;
+
 export async function generateStaticParams() {
   const { MockCatalogProvider } = await import("@/lib/catalog/mock-provider");
   const provider = new MockCatalogProvider();
