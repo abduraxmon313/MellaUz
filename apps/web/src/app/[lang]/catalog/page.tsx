@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { isLocale } from "@/i18n/config";
 import { getDictionary } from "@/i18n/dictionaries";
 import {
@@ -8,6 +7,8 @@ import {
 } from "@/lib/catalog/provider";
 import { ProductCard } from "@/components/ProductCard";
 import { Reveal } from "@/components/Reveal";
+import { PageHeader } from "@/components/PageHeader";
+import { CategoryFilter } from "@/components/CategoryFilter";
 
 export async function generateMetadata({
   params,
@@ -48,40 +49,26 @@ export default async function CatalogPage({
 
   return (
     <>
-      <section className="border-b border-mocha/20 bg-dark-chocolate/40 pt-28 pb-14 lg:pt-36 lg:pb-16">
-        <div className="mx-auto max-w-7xl px-5 lg:px-8">
-          <p className="text-xs uppercase tracking-[0.3em] text-gold">
-            {dict.common.brand}
-          </p>
-          <h1 className="mt-3 font-display text-4xl text-pearl sm:text-5xl">
-            {dict.catalog.title}
-          </h1>
-          <p className="mt-3 text-pearl/60">{dict.catalog.subtitle}</p>
+      <PageHeader
+        eyebrow={dict.common.brand}
+        title={dict.catalog.title}
+        subtitle={dict.catalog.subtitle}
+      >
+        <CategoryFilter
+          categories={categories}
+          locale={locale}
+          allLabel={dict.catalog.filterAll}
+        />
+      </PageHeader>
 
-          <nav className="mt-8 flex flex-wrap gap-2.5">
-            <span className="rounded-full bg-gold px-5 py-2 text-xs font-semibold uppercase tracking-wider text-espresso">
-              {dict.catalog.filterAll}
-            </span>
-            {categories.map((category) => (
-              <Link
-                key={category.slug}
-                href={`/${locale}/catalog/${category.slug}`}
-                className="rounded-full border border-mocha/50 px-5 py-2 text-xs uppercase tracking-wider text-pearl/75 transition hover:border-gold hover:text-champagne"
-              >
-                {category.name[locale]}
-              </Link>
-            ))}
-          </nav>
-        </div>
-      </section>
-
-      <section className="mx-auto max-w-7xl px-5 py-14 lg:px-8 lg:py-20">
-        <p className="mb-8 text-sm text-pearl/50">
-          {products.length} {dict.catalog.products}
+      <section className="container-site py-12 lg:py-16">
+        <p className="mb-8 text-sm text-muted">
+          <span className="font-semibold tabular-nums text-brown">{products.length}</span>{" "}
+          {dict.catalog.products}
         </p>
-        <div className="grid grid-cols-2 gap-5 lg:grid-cols-4 lg:gap-7">
+        <div className="grid grid-cols-2 gap-x-4 gap-y-9 sm:gap-x-5 lg:grid-cols-4 lg:gap-x-7 lg:gap-y-12">
           {products.map((product, i) => (
-            <Reveal key={product.slug} delay={(i % 4) * 70}>
+            <Reveal key={product.slug} delay={(i % 4) * 60}>
               <ProductCard
                 product={product}
                 dict={dict}

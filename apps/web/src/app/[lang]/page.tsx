@@ -54,33 +54,24 @@ export default async function HomePage({
     { title: dict.values.trustTitle, text: dict.values.trustText },
   ];
 
+  const titleParts = dict.home.heroTitle.split(",");
+
   return (
     <>
-      {/* ── Hero ───────────────────────────────────────────── */}
-      <section className="grain relative flex min-h-[100svh] items-center overflow-hidden">
-        <Image
-          src={heroImg}
-          alt=""
-          fill
-          priority
-          placeholder="blur"
-          sizes="100vw"
-          className="hero-zoom object-cover object-center"
+      {/* ── Hero (to'q jigarrang, split kompozitsiya) ─────────── */}
+      <section className="on-dark grain relative overflow-hidden bg-brown text-cream">
+        <div
+          aria-hidden
+          className="pointer-events-none absolute -left-40 top-10 h-[30rem] w-[30rem] rounded-full bg-gold/12 blur-[130px]"
         />
-        <div className="absolute inset-0 bg-linear-to-r from-espresso via-espresso/75 to-espresso/10" />
-        <div className="absolute inset-0 bg-linear-to-t from-espresso via-transparent to-espresso/50" />
-        <div className="absolute -left-40 top-1/3 h-[32rem] w-[32rem] rounded-full bg-gold/10 blur-[120px]" />
-
-        <MellaEmblem className="pointer-events-none absolute -right-16 -bottom-10 hidden h-[52vh] w-[52vh] opacity-[0.06] xl:block" />
-
-        <div className="relative mx-auto w-full max-w-7xl px-5 pt-32 pb-24 lg:px-8">
+        <div className="container-site relative grid items-center gap-12 pt-[calc(var(--header-h)+2.75rem)] pb-16 lg:grid-cols-[1.08fr_0.92fr] lg:gap-16 lg:pt-[calc(var(--header-h)+4.5rem)] lg:pb-24">
           <div className="max-w-2xl">
-            <p className="animate-fade-up inline-flex items-center gap-3 rounded-full border border-gold/25 bg-espresso/40 px-4 py-1.5 text-[11px] uppercase tracking-[0.3em] text-gold backdrop-blur-sm">
-              <span className="h-1.5 w-1.5 rounded-full bg-gold" />
+            <p className="animate-fade-up inline-flex items-center gap-2.5 rounded-full border border-gold/30 bg-cream/[0.04] px-4 py-1.5 text-[11px] font-semibold uppercase tracking-[0.26em] text-gold">
+              <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-gold" />
               {dict.home.heroKicker}
             </p>
-            <h1 className="animate-fade-up mt-6 font-display text-[2.9rem] leading-[1.02] text-pearl sm:text-6xl lg:text-[5.2rem]">
-              {dict.home.heroTitle.split(",").map((part, i, arr) => (
+            <h1 className="h-hero animate-fade-up mt-6 text-cream [animation-delay:60ms]">
+              {titleParts.map((part, i, arr) => (
                 <span key={i}>
                   <span className={i === arr.length - 1 ? "text-gradient-gold" : ""}>
                     {part.trim()}
@@ -89,11 +80,11 @@ export default async function HomePage({
                 </span>
               ))}
             </h1>
-            <p className="animate-fade-up mt-6 max-w-xl text-base leading-relaxed text-pearl/75 sm:text-lg">
+            <p className="lead animate-fade-up mt-6 max-w-xl [animation-delay:120ms]">
               {dict.home.heroText}
             </p>
-            <div className="animate-fade-up mt-10 flex flex-wrap items-center gap-4">
-              <Link href={`/${locale}/catalog`} className="btn-gold">
+            <div className="animate-fade-up mt-9 flex flex-wrap items-center gap-3 [animation-delay:180ms] sm:gap-4">
+              <Link href={`/${locale}/catalog`} className="btn btn-gold btn-lg">
                 {dict.home.heroCtaCatalog}
                 <ArrowIcon />
               </Link>
@@ -101,93 +92,109 @@ export default async function HomePage({
                 dict={dict}
                 locale={locale}
                 label={dict.home.heroCtaOrder}
-                variant="outline"
+                variant="light"
+                size="lg"
               />
             </div>
 
-            <dl className="animate-fade-up mt-14 grid max-w-xl grid-cols-2 gap-x-8 gap-y-6 border-t border-pearl/10 pt-8 sm:grid-cols-4">
+            <dl className="animate-fade-up mt-12 grid max-w-xl grid-cols-2 gap-x-6 gap-y-6 border-t border-cream/12 pt-8 [animation-delay:240ms] sm:grid-cols-4">
               {dict.home.stats.map((s) => (
-                <div key={s.label}>
-                  <dt className="font-display text-3xl text-gradient-gold sm:text-4xl">{s.value}</dt>
-                  <dd className="mt-1 text-[11px] uppercase tracking-[0.16em] text-pearl/55">{s.label}</dd>
+                <div key={s.label} className="flex flex-col">
+                  <dt className="order-2 mt-2 text-[10.5px] font-medium uppercase tracking-[0.16em] text-sand">
+                    {s.label}
+                  </dt>
+                  <dd className="order-1 font-display text-3xl leading-none text-gold-light sm:text-[2.1rem]">
+                    {s.value}
+                  </dd>
                 </div>
               ))}
             </dl>
           </div>
-        </div>
 
-        <div className="absolute inset-x-0 bottom-6 hidden justify-center sm:flex">
-          <span className="flex flex-col items-center gap-2 text-[10px] uppercase tracking-[0.3em] text-pearl/45">
-            <span className="flex h-9 w-5 justify-center rounded-full border border-pearl/25 pt-1.5">
-              <span className="scroll-dot h-1.5 w-1 rounded-full bg-gold" />
-            </span>
-            {dict.home.scroll}
-          </span>
+          <div className="relative mx-auto w-full max-w-md lg:max-w-none">
+            <div className="relative aspect-[4/5] overflow-hidden rounded-[1.75rem] ring-1 ring-gold/25 shadow-[0_40px_80px_-40px_rgba(0,0,0,0.7)]">
+              <Image
+                src={heroImg}
+                alt=""
+                fill
+                priority
+                placeholder="blur"
+                sizes="(max-width: 1024px) 90vw, 45vw"
+                className="object-cover object-center"
+              />
+              <div className="absolute inset-0 bg-linear-to-t from-espresso/45 via-transparent to-transparent" />
+            </div>
+            {/* Ramka chizig'i — nozik premium detal */}
+            <div
+              aria-hidden
+              className="pointer-events-none absolute -inset-3 -z-0 hidden rounded-[2.1rem] border border-gold/15 sm:block"
+            />
+            <div className="absolute -bottom-5 left-4 flex items-center gap-3 rounded-2xl border border-line bg-cream px-4 py-3 text-brown shadow-lift sm:left-6">
+              <MellaEmblem className="h-9 w-9" />
+              <div className="leading-tight">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-bronze">
+                  MELLA
+                </p>
+                <p className="mt-0.5 text-sm font-medium">{dict.common.since}</p>
+              </div>
+            </div>
+          </div>
         </div>
       </section>
 
-      {/* ── Brend lentasi (cheksiz) ────────────────────────── */}
-      <div className="overflow-hidden border-y border-gold/10 bg-dark-chocolate/60 py-5">
-        <div className="marquee">
-          {[0, 1].map((dup) => (
-            <div key={dup} className="flex shrink-0 items-center" aria-hidden={dup === 1}>
-              {[...strip, ...strip].map((item, i) => (
-                <span key={i} className="flex items-center">
-                  <span className="px-8 font-display text-xl italic text-pearl/70 sm:text-2xl">
-                    {item}
-                  </span>
-                  <MellaEmblem className="h-6 w-6 opacity-70" />
-                </span>
-              ))}
-            </div>
+      {/* ── Brend qadriyatlari lentasi (statik, sokin) ────────── */}
+      <div className="border-b border-line bg-ivory">
+        <ul className="container-site grid grid-cols-2 gap-y-4 py-6 sm:flex sm:flex-wrap sm:items-center sm:justify-center sm:gap-x-10">
+          {strip.map((item, i) => (
+            <li key={i} className="flex items-center justify-center gap-3 text-center sm:gap-10">
+              {i > 0 && (
+                <MellaEmblem className="hidden h-5 w-5 opacity-80 sm:block" />
+              )}
+              <span className="font-display text-lg italic text-brown sm:text-xl">{item}</span>
+            </li>
           ))}
-        </div>
+        </ul>
       </div>
 
       {/* ── Kategoriyalar ──────────────────────────────────── */}
-      <section className="mx-auto max-w-7xl px-5 py-20 lg:px-8 lg:py-28">
-        <Reveal className="mb-12 flex items-end justify-between gap-6">
+      <section className="container-site section-y">
+        <Reveal className="mb-10 flex items-end justify-between gap-6 lg:mb-12">
           <div>
-            <p className="text-xs uppercase tracking-[0.3em] text-gold">
-              {dict.home.categoriesTitle}
-            </p>
-            <h2 className="mt-3 font-display text-3xl text-pearl sm:text-4xl">
-              {dict.home.categoriesSubtitle}
-            </h2>
+            <p className="eyebrow">{dict.home.categoriesTitle}</p>
+            <h2 className="h-section mt-3 text-brown">{dict.home.categoriesSubtitle}</h2>
           </div>
-          <Link
-            href={`/${locale}/catalog`}
-            className="hidden shrink-0 items-center gap-2 text-sm uppercase tracking-wider text-pearl/60 transition hover:text-champagne sm:inline-flex"
-          >
+          <Link href={`/${locale}/catalog`} className="btn-link hidden shrink-0 sm:inline-flex">
             {dict.common.viewAll}
             <ArrowIcon />
           </Link>
         </Reveal>
 
-        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4 lg:gap-6">
+        <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4 lg:gap-6">
           {categoryViews.map((category, i) => (
-            <Reveal key={category.slug} delay={i * 80}>
+            <Reveal key={category.slug} delay={i * 70}>
               <CategoryCard category={category} locale={locale} />
             </Reveal>
           ))}
         </div>
+        <div className="mt-8 sm:hidden">
+          <Link href={`/${locale}/catalog`} className="btn btn-secondary btn-block">
+            {dict.common.viewAll}
+            <ArrowIcon />
+          </Link>
+        </div>
       </section>
 
       {/* ── Tanlangan mahsulotlar ──────────────────────────── */}
-      <section className="border-t border-mocha/20 bg-dark-chocolate/30">
-        <div className="mx-auto max-w-7xl px-5 py-20 lg:px-8 lg:py-28">
-          <Reveal className="mb-12 text-center">
-            <p className="text-xs uppercase tracking-[0.3em] text-gold">
-              {dict.home.featuredTitle}
-            </p>
-            <h2 className="mt-3 font-display text-3xl text-pearl sm:text-4xl">
-              {dict.home.featuredSubtitle}
-            </h2>
+      <section className="border-y border-line bg-ivory">
+        <div className="container-site section-y">
+          <Reveal className="mb-10 text-center lg:mb-14">
+            <p className="eyebrow">{dict.home.featuredTitle}</p>
+            <h2 className="h-section mt-3 text-brown">{dict.home.featuredSubtitle}</h2>
           </Reveal>
 
-          <div className="grid grid-cols-2 gap-5 lg:grid-cols-4 lg:gap-7">
+          <div className="grid grid-cols-2 gap-x-4 gap-y-9 sm:gap-x-5 lg:grid-cols-4 lg:gap-x-7 lg:gap-y-12">
             {featured.map((product, i) => (
-              <Reveal key={product.slug} delay={(i % 4) * 80}>
+              <Reveal key={product.slug} delay={(i % 4) * 70}>
                 <ProductCard
                   product={product}
                   dict={dict}
@@ -198,8 +205,8 @@ export default async function HomePage({
             ))}
           </div>
 
-          <div className="mt-12 text-center">
-            <Link href={`/${locale}/catalog`} className="btn-ghost">
+          <div className="mt-12 text-center lg:mt-14">
+            <Link href={`/${locale}/catalog`} className="btn btn-primary">
               {dict.common.viewAll}
               <ArrowIcon />
             </Link>
@@ -208,8 +215,8 @@ export default async function HomePage({
       </section>
 
       {/* ── Brend hikoyasi ─────────────────────────────────── */}
-      <section className="mx-auto grid max-w-7xl items-center gap-10 px-5 py-20 lg:grid-cols-2 lg:gap-16 lg:px-8 lg:py-28">
-        <Reveal className="relative aspect-[4/5] overflow-hidden rounded-3xl lg:aspect-square">
+      <section className="container-site section-y grid items-center gap-10 lg:grid-cols-2 lg:gap-20">
+        <Reveal className="media-frame aspect-[4/3] shadow-card lg:aspect-[5/4]">
           <Image
             src={craftImg}
             alt=""
@@ -219,20 +226,11 @@ export default async function HomePage({
             className="object-cover"
           />
         </Reveal>
-        <Reveal delay={120}>
-          <p className="text-xs uppercase tracking-[0.3em] text-gold">
-            {dict.home.storyKicker}
-          </p>
-          <h2 className="mt-4 font-display text-3xl leading-tight text-pearl sm:text-4xl">
-            {dict.home.storyTitle}
-          </h2>
-          <p className="mt-6 text-base leading-relaxed text-pearl/70">
-            {dict.home.storyText}
-          </p>
-          <Link
-            href={`/${locale}/about`}
-            className="mt-8 inline-flex items-center gap-2 text-sm uppercase tracking-wider text-gold transition hover:text-champagne"
-          >
+        <Reveal delay={100}>
+          <p className="eyebrow">{dict.home.storyKicker}</p>
+          <h2 className="h-section mt-4 text-brown">{dict.home.storyTitle}</h2>
+          <p className="lead mt-6">{dict.home.storyText}</p>
+          <Link href={`/${locale}/about`} className="btn btn-secondary mt-9">
             {dict.home.storyCta}
             <ArrowIcon />
           </Link>
@@ -240,26 +238,23 @@ export default async function HomePage({
       </section>
 
       {/* ── Qadriyatlar ────────────────────────────────────── */}
-      <section className="border-t border-mocha/20 bg-dark-chocolate/30">
-        <div className="mx-auto max-w-7xl px-5 py-20 lg:px-8 lg:py-28">
-          <Reveal className="mb-14 text-center">
-            <h2 className="font-display text-3xl text-pearl sm:text-4xl">
-              {dict.home.valuesTitle}
-            </h2>
+      <section className="border-t border-line bg-ivory">
+        <div className="container-site section-y">
+          <Reveal className="mb-10 text-center lg:mb-14">
+            <h2 className="h-section text-brown">{dict.home.valuesTitle}</h2>
+            <hr className="rule-gold mx-auto mt-6 w-24" />
           </Reveal>
-          <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 lg:gap-5">
             {values.map((value, i) => (
-              <Reveal key={i} delay={i * 80}>
-                <div className="flex flex-col">
-                  <span className="font-display text-5xl text-gold/30">
+              <Reveal key={i} delay={i * 70} className="h-full">
+                <div className="card h-full p-6 lg:p-7">
+                  <span className="flex h-11 w-11 items-center justify-center rounded-full bg-brown font-display text-lg text-gold-light">
                     0{i + 1}
                   </span>
-                  <h3 className="mt-4 font-display text-xl text-champagne">
+                  <h3 className="mt-5 font-display text-[1.4rem] leading-snug text-brown">
                     {value.title}
                   </h3>
-                  <p className="mt-3 text-sm leading-relaxed text-pearl/65">
-                    {value.text}
-                  </p>
+                  <p className="mt-2.5 text-sm leading-relaxed text-muted">{value.text}</p>
                 </div>
               </Reveal>
             ))}
@@ -268,30 +263,28 @@ export default async function HomePage({
       </section>
 
       {/* ── Yakuniy CTA ────────────────────────────────────── */}
-      <section className="relative overflow-hidden">
+      <section className="on-dark relative overflow-hidden bg-espresso">
         <Image
           src={leatherImg}
           alt=""
           fill
           placeholder="blur"
           sizes="100vw"
-          className="object-cover"
+          className="object-cover opacity-40"
         />
-        <div className="absolute inset-0 bg-espresso/85" />
-        <div className="relative mx-auto max-w-3xl px-5 py-24 text-center lg:px-8 lg:py-32">
+        <div className="absolute inset-0 bg-linear-to-b from-espresso/70 via-brown/80 to-espresso/90" />
+        <div className="relative mx-auto max-w-3xl px-5 py-24 text-center lg:px-8 lg:py-28">
           <Reveal>
-            <h2 className="font-display text-4xl text-pearl sm:text-5xl">
-              {dict.home.ctaTitle}
-            </h2>
-            <p className="mx-auto mt-5 max-w-xl text-base text-pearl/70">
-              {dict.home.ctaText}
-            </p>
+            <MellaEmblem className="mx-auto mb-6 h-12 w-12" />
+            <h2 className="h-section text-cream sm:text-5xl">{dict.home.ctaTitle}</h2>
+            <p className="lead mx-auto mt-5 max-w-xl">{dict.home.ctaText}</p>
             <div className="mt-9 flex items-center justify-center">
               <OrderDialog
                 dict={dict}
                 locale={locale}
                 label={dict.nav.order}
-                variant="solid"
+                variant="gold"
+                size="lg"
               />
             </div>
           </Reveal>
