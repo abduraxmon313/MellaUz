@@ -63,8 +63,8 @@ export function OrderForm({
 
   if (status === "success") {
     return (
-      <div className="rounded-2xl border border-line bg-paper p-8 text-center" role="status" aria-live="polite">
-        <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-success/10 text-success ring-1 ring-success/25">
+      <div className="rounded-2xl border border-gold/30 bg-dark-chocolate/60 p-8 text-center">
+        <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full border border-gold/40 text-gold">
           <svg width="26" height="26" viewBox="0 0 24 24" fill="none" aria-hidden>
             <path
               d="M20 6 9 17l-5-5"
@@ -75,10 +75,10 @@ export function OrderForm({
             />
           </svg>
         </div>
-        <h3 className="font-display text-2xl text-brown">{t.successTitle}</h3>
-        <p className="mt-2 text-sm leading-relaxed text-muted">{t.successText}</p>
+        <h3 className="font-display text-2xl text-champagne">{t.successTitle}</h3>
+        <p className="mt-2 text-sm text-pearl/70">{t.successText}</p>
         {onDone && (
-          <button type="button" onClick={onDone} className="btn btn-primary mt-6">
+          <button type="button" onClick={onDone} className="btn-gold mt-6">
             {t.close}
           </button>
         )}
@@ -86,21 +86,16 @@ export function OrderForm({
     );
   }
 
-  const field = "field-input";
-  const label = "field-label";
-  const errorIcon = (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden className="shrink-0">
-      <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="2" />
-      <path d="M12 7.5v5.5M12 16.5h.01" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-    </svg>
-  );
+  const field =
+    "w-full rounded-2xl border border-pearl/10 bg-espresso/50 px-4 py-3.5 text-[15px] text-pearl placeholder:text-pearl/30 outline-none transition focus:border-gold/60 focus:bg-espresso/70 focus:ring-4 focus:ring-gold/10 aria-[invalid=true]:border-gold/70";
+  const label = "mb-1.5 block text-[11px] uppercase tracking-[0.18em] text-pearl/55";
 
   return (
     <form onSubmit={handleSubmit} noValidate className="space-y-5">
       <div className="grid gap-5 sm:grid-cols-2">
         <div>
           <label htmlFor={`${uid}-name`} className={label}>
-            {t.name} <span className="text-bronze" aria-hidden>*</span>
+            {t.name} *
           </label>
           <input
             id={`${uid}-name`}
@@ -109,20 +104,13 @@ export function OrderForm({
             autoComplete="name"
             placeholder={t.namePlaceholder}
             className={field}
-            required
             aria-invalid={Boolean(errors.name)}
-            aria-describedby={errors.name ? `${uid}-name-err` : undefined}
           />
-          {errors.name && (
-            <p id={`${uid}-name-err`} className="field-error">
-              {errorIcon}
-              {errors.name}
-            </p>
-          )}
+          {errors.name && <p className="mt-1 text-xs text-gold">{errors.name}</p>}
         </div>
         <div>
           <label htmlFor={`${uid}-phone`} className={label}>
-            {t.phone} <span className="text-bronze" aria-hidden>*</span>
+            {t.phone} *
           </label>
           <input
             id={`${uid}-phone`}
@@ -132,16 +120,9 @@ export function OrderForm({
             autoComplete="tel"
             placeholder={t.phonePlaceholder}
             className={field}
-            required
             aria-invalid={Boolean(errors.phone)}
-            aria-describedby={errors.phone ? `${uid}-phone-err` : undefined}
           />
-          {errors.phone && (
-            <p id={`${uid}-phone-err`} className="field-error">
-              {errorIcon}
-              {errors.phone}
-            </p>
-          )}
+          {errors.phone && <p className="mt-1 text-xs text-gold">{errors.phone}</p>}
         </div>
       </div>
 
@@ -181,23 +162,21 @@ export function OrderForm({
       </div>
 
       {status === "error" && (
-        <p className="alert-error" role="alert">
-          {errorIcon}
-          {t.errorGeneric}
-        </p>
+        <p className="text-sm text-gold">{t.errorGeneric}</p>
       )}
 
       <button
         type="submit"
         disabled={status === "submitting"}
-        aria-busy={status === "submitting"}
-        className="btn btn-primary btn-lg btn-block"
+        className="btn-gold w-full disabled:pointer-events-none disabled:opacity-60"
       >
-        {status === "submitting" && <span className="spinner" aria-hidden />}
+        {status === "submitting" && (
+          <span className="h-4 w-4 animate-spin rounded-full border-2 border-espresso/30 border-t-espresso" aria-hidden />
+        )}
         {status === "submitting" ? t.submitting : t.submit}
       </button>
 
-      <p className="text-xs leading-relaxed text-muted">{t.privacy}</p>
+      <p className="text-xs text-pearl/45">{t.privacy}</p>
     </form>
   );
 }

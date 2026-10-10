@@ -35,68 +35,61 @@ export function Footer({ dict, locale }: { dict: Dictionary; locale: Locale }) {
     { href: `/${locale}/contact`, label: dict.nav.contact },
   ];
 
-  const social =
-    "inline-flex h-11 w-11 items-center justify-center rounded-full border border-cream/15 text-cream/80 transition-colors hover:border-gold hover:text-gold-light";
-
   return (
-    <footer className="on-dark grain relative overflow-hidden bg-espresso text-cream">
-      <div aria-hidden className="h-px bg-linear-to-r from-transparent via-gold/60 to-transparent" />
-      <MellaEmblem className="pointer-events-none absolute -right-20 -top-10 h-[28rem] w-[28rem] opacity-[0.05]" />
-      <div className="container-site relative grid gap-12 py-16 lg:grid-cols-[1.4fr_1fr_1fr] lg:py-20">
+    <footer className="relative overflow-hidden border-t border-gold/10 bg-dark-chocolate">
+      <MellaEmblem className="pointer-events-none absolute -right-20 -top-10 h-[30rem] w-[30rem] opacity-[0.04]" />
+      <div className="relative mx-auto grid max-w-7xl gap-12 px-5 py-16 lg:grid-cols-[1.4fr_1fr_1fr] lg:px-8 lg:py-20">
         <div>
-          <Logo locale={locale} size="lg" tone="dark" />
-          <p className="mt-5 text-[11px] font-semibold uppercase tracking-[0.3em] text-gold">
+          <Logo locale={locale} size="lg" />
+          <p className="mt-4 text-xs uppercase tracking-[0.3em] text-gold/80">
             {dict.meta.tagline}
           </p>
-          <p className="mt-4 max-w-sm text-sm leading-relaxed text-sand">{dict.footer.about}</p>
+          <p className="mt-5 max-w-sm text-sm leading-relaxed text-pearl/55">
+            {dict.footer.about}
+          </p>
         </div>
 
-        <nav aria-label={dict.footer.navTitle}>
-          <h3 className="mb-5 text-[11px] font-semibold uppercase tracking-[0.2em] text-sand">
+        <div>
+          <h3 className="mb-4 text-xs uppercase tracking-wider text-pearl/50">
             {dict.footer.navTitle}
           </h3>
-          <ul className="space-y-3">
+          <ul className="space-y-2.5">
             {links.map((link) => (
               <li key={link.href}>
                 <Link
                   href={link.href}
-                  className="text-sm text-cream/85 transition-colors hover:text-gold-light"
+                  className="text-sm text-pearl/75 transition hover:text-champagne"
                 >
                   {link.label}
                 </Link>
               </li>
             ))}
           </ul>
-        </nav>
+        </div>
 
         <div>
-          <h3 className="mb-5 text-[11px] font-semibold uppercase tracking-[0.2em] text-sand">
+          <h3 className="mb-4 text-xs uppercase tracking-wider text-pearl/50">
             {dict.footer.contactTitle}
           </h3>
-          <ul className="space-y-3 text-sm text-cream/85">
+          <ul className="space-y-2.5 text-sm text-pearl/75">
             <li>{site.address[locale]}</li>
             {site.phone && (
               <li>
-                <a
-                  href={`tel:${site.phoneHref}`}
-                  className="tabular-nums transition-colors hover:text-gold-light"
-                >
+                <a href={`tel:${site.phoneHref}`} className="transition hover:text-champagne">
                   {site.phone}
                 </a>
               </li>
             )}
-            <li>
-              <span className="text-sand">{dict.contact.hoursLabel}:</span> {site.hours}
-            </li>
+            <li>{dict.contact.hoursLabel}: {site.hours}</li>
           </ul>
 
-          <div className="mt-6 flex items-center gap-3">
+          <div className="mt-5 flex items-center gap-3">
             <a
               href={site.instagram}
               target="_blank"
               rel="noopener noreferrer"
               aria-label="Instagram"
-              className={social}
+              className="flex h-10 w-10 items-center justify-center rounded-full border border-mocha/50 text-pearl/70 transition hover:border-gold hover:text-champagne"
             >
               <InstagramIcon />
             </a>
@@ -106,7 +99,7 @@ export function Footer({ dict, locale }: { dict: Dictionary; locale: Locale }) {
                 target="_blank"
                 rel="noopener noreferrer"
                 aria-label="Telegram"
-                className={social}
+                className="flex h-10 w-10 items-center justify-center rounded-full border border-mocha/50 text-pearl/70 transition hover:border-gold hover:text-champagne"
               >
                 <TelegramIcon />
               </a>
@@ -115,8 +108,8 @@ export function Footer({ dict, locale }: { dict: Dictionary; locale: Locale }) {
         </div>
       </div>
 
-      <div className="relative border-t border-cream/10">
-        <div className="container-site flex flex-col items-center justify-between gap-2 py-6 text-xs text-sand sm:flex-row">
+      <div className="relative border-t border-mocha/25">
+        <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-2 px-5 py-6 text-xs text-pearl/45 sm:flex-row lg:px-8">
           <p>
             © {new Date().getFullYear()} MELLA. {dict.footer.rights}
           </p>

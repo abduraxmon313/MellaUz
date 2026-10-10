@@ -1,61 +1,34 @@
 @import "tailwindcss";
 
 /*
-  MELLA dizayn tizimi — "Cream · Espresso · Champagne".
-  Qaymoq (cream) — tozalik va iliqlik, to'q jigarrang — chuqurlik va nafislik,
-  shampan oltin — o'lchovli premium urg'u.
-
-  Token nomlari ROLI bo'yicha (semantik):
-    cream      → asosiy fon                       #FCF8E5
-    ivory      → ikkinchi darajali yuza / bo'lim   #F2E8D0
-    paper      → karta, input (eng yorug')         #FFFDF6
-    brown      → asosiy matn, tuzilma, asosiy tugma #261918
-    espresso   → eng to'q fon (footer, hero)       #180F0F
-    cocoa      → to'q yuzadagi ikkinchi daraja     #382725
-    gold       → urg'u (to'q fonda matn, tugma foni) #D9A867
-    gold-light → to'q fondagi yorug' urg'u          #F7D99C
-    bronze     → yorug' fondagi "oltin" matn (AA)   #8A5A22
-    line       → chegara                           #E6DCC5
-    muted      → ikkinchi darajali matn (AA)        #6B5E56
-    sand       → to'q fondagi ikkinchi matn (AA)    #BFAE9A
+  MELLA dizayn tizimi.
+  Brend palitrasi: Deep Espresso -> Gold -> Ivory.
 */
 @theme {
-  --color-cream: #fcf8e5;
-  --color-ivory: #f2e8d0;
-  --color-paper: #fffdf6;
-  --color-brown: #261918;
   --color-espresso: #180f0f;
-  --color-cocoa: #382725;
+  --color-dark-chocolate: #261918;
+  --color-chocolate: #382725;
+  --color-brown: #493833;
+  --color-mocha: #634b47;
+  --color-dark-gold: #97612c;
   --color-gold: #d9a867;
-  --color-gold-light: #f7d99c;
-  --color-bronze: #8a5a22;
-  --color-line: #e6dcc5;
-  --color-line-strong: #d3c3a3;
-  --color-muted: #6b5e56;
-  --color-sand: #bfae9a;
-  --color-success: #24704e;
-  --color-error: #b83a36;
-  --color-warning: #8a5a10;
+  --color-champagne: #f7d99c;
+  --color-pearl: #f2e8d0;
+  --color-ivory: #fcf8e5;
 
   --font-serif: var(--font-cormorant), Georgia, "Times New Roman", serif;
   --font-sans: var(--font-manrope), ui-sans-serif, system-ui, sans-serif;
 
   --tracking-brand: 0.28em;
 
-  --shadow-soft: 0 1px 2px rgba(38, 25, 24, 0.05), 0 4px 14px -6px rgba(38, 25, 24, 0.1);
-  --shadow-card: 0 1px 2px rgba(38, 25, 24, 0.05), 0 18px 40px -24px rgba(38, 25, 24, 0.28);
-  --shadow-lift: 0 2px 4px rgba(38, 25, 24, 0.05), 0 28px 50px -26px rgba(38, 25, 24, 0.38);
-
-  --ease-brand: cubic-bezier(0.16, 1, 0.3, 1);
-
-  --animate-fade-up: fade-up 0.8s var(--ease-brand) both;
-  --animate-fade-in: fade-in 1s ease both;
+  --animate-fade-up: fade-up 0.9s cubic-bezier(0.16, 1, 0.3, 1) both;
+  --animate-fade-in: fade-in 1.2s ease both;
 }
 
 @keyframes fade-up {
   from {
     opacity: 0;
-    transform: translateY(18px);
+    transform: translateY(28px);
   }
   to {
     opacity: 1;
@@ -73,10 +46,7 @@
 }
 
 :root {
-  color-scheme: light;
-  /* Komponentlar ichida ishlatiladigan umumiy o'lchamlar */
-  --header-h: 4.25rem;
-  --focus-ring: 0 0 0 3px var(--color-cream), 0 0 0 5px var(--color-bronze);
+  color-scheme: dark;
 }
 
 html {
@@ -85,28 +55,18 @@ html {
 }
 
 body {
-  background-color: var(--color-cream);
-  color: var(--color-brown);
+  background-color: var(--color-espresso);
+  color: var(--color-pearl);
   font-family: var(--font-sans);
   font-feature-settings: "liga" 1, "calt" 1;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
-  overflow-x: clip;
 }
 
+/* Nozik, brendga mos skroll chizig'i */
 ::selection {
-  background-color: var(--color-gold-light);
-  color: var(--color-brown);
-}
-
-/* Klaviatura fokus — har doim ko'rinadi (sichqonchada emas) */
-:where(a, button, input, textarea, select, summary, [tabindex]):focus-visible {
-  outline: 2px solid var(--color-bronze);
-  outline-offset: 3px;
-  border-radius: 6px;
-}
-.on-dark :where(a, button, [tabindex]):focus-visible {
-  outline-color: var(--color-gold-light);
+  background-color: var(--color-gold);
+  color: var(--color-espresso);
 }
 
 @layer utilities {
@@ -115,401 +75,121 @@ body {
     font-weight: 500;
   }
 
-  /* Shampan-oltin gradient matn — FAQAT to'q fonda yoki yirik sarlavhada */
+  /* Oltin градиент matn (sarlavha urg'ulari uchun) */
   .text-gradient-gold {
-    background: linear-gradient(100deg, #f7d99c 0%, #d9a867 45%, #e9c182 70%, #b98445 100%);
+    background: linear-gradient(
+      100deg,
+      var(--color-champagne) 0%,
+      var(--color-gold) 45%,
+      var(--color-dark-gold) 100%
+    );
     -webkit-background-clip: text;
     background-clip: text;
     color: transparent;
   }
 
-  /* Yorug' fondagi oltin urg'u (o'qilishi uchun to'qroq bronza) */
-  .text-gradient-bronze {
-    background: linear-gradient(100deg, #a8732f 0%, #8a5a22 50%, #6e4519 100%);
-    -webkit-background-clip: text;
-    background-clip: text;
-    color: transparent;
+  .shadow-luxe {
+    box-shadow:
+      0 1px 0 0 rgba(247, 217, 156, 0.08) inset,
+      0 30px 60px -30px rgba(0, 0, 0, 0.8);
   }
 
+  /* Hover payti sekin ko'tariladigan karta */
   .lift {
     transition:
-      transform 0.45s var(--ease-brand),
-      box-shadow 0.45s ease;
+      transform 0.5s cubic-bezier(0.16, 1, 0.3, 1),
+      box-shadow 0.5s ease;
   }
-  @media (hover: hover) {
-    .lift:hover {
-      transform: translateY(-4px);
-    }
+
+  .lift:hover {
+    transform: translateY(-6px);
   }
 }
 
 /* ── Komponentlar ─────────────────────────────────────────── */
 @layer components {
-  /* Konteyner va bo'lim ritmi */
-  .container-site {
-    margin-inline: auto;
-    width: 100%;
-    max-width: 80rem;
-    padding-inline: 1.25rem;
-  }
-  @media (min-width: 1024px) {
-    .container-site {
-      padding-inline: 2rem;
-    }
-  }
-  .section-y {
-    padding-block: 4.5rem;
-  }
-  @media (min-width: 1024px) {
-    .section-y {
-      padding-block: 6.5rem;
-    }
-  }
-
-  /* Tipografiya */
-  .eyebrow {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.75rem;
-    font-size: 0.6875rem;
-    font-weight: 600;
-    letter-spacing: 0.28em;
-    text-transform: uppercase;
-    color: var(--color-bronze);
-  }
-  .eyebrow::before {
-    content: "";
-    width: 1.75rem;
-    height: 1px;
-    background: currentColor;
-    opacity: 0.6;
-  }
-  .on-dark .eyebrow {
-    color: var(--color-gold);
-  }
-  .h-hero {
-    font-family: var(--font-serif);
-    font-weight: 500;
-    font-size: clamp(2.6rem, 6.2vw, 4.9rem);
-    line-height: 1.02;
-    letter-spacing: -0.005em;
-  }
-  .h-page {
-    font-family: var(--font-serif);
-    font-weight: 500;
-    font-size: clamp(2.3rem, 4.6vw, 3.4rem);
-    line-height: 1.06;
-  }
-  .h-section {
-    font-family: var(--font-serif);
-    font-weight: 500;
-    font-size: clamp(1.9rem, 3.4vw, 2.6rem);
-    line-height: 1.12;
-  }
-  .lead {
-    font-size: 1.0625rem;
-    line-height: 1.7;
-    color: var(--color-muted);
-  }
-  .on-dark .lead {
-    color: var(--color-sand);
-  }
-
-  /* ── Tugmalar ─────────────────────────────────────────── */
-  .btn {
+  .btn-gold {
     position: relative;
+    isolation: isolate;
     display: inline-flex;
     align-items: center;
     justify-content: center;
     gap: 0.6rem;
-    min-height: 3rem;
+    overflow: hidden;
     border-radius: 9999px;
-    border: 1px solid transparent;
-    padding: 0.8rem 1.75rem;
-    font-size: 0.78rem;
-    font-weight: 600;
-    line-height: 1.2;
-    letter-spacing: 0.14em;
-    text-transform: uppercase;
-    white-space: nowrap;
-    cursor: pointer;
-    user-select: none;
-    transition:
-      background-color 0.25s ease,
-      border-color 0.25s ease,
-      color 0.25s ease,
-      box-shadow 0.3s ease,
-      transform 0.2s var(--ease-brand);
-  }
-  .btn:active {
-    transform: translateY(1px) scale(0.985);
-  }
-  .btn:disabled,
-  .btn[aria-disabled="true"] {
-    cursor: not-allowed;
-    opacity: 0.55;
-    transform: none;
-    box-shadow: none;
-  }
-  .btn-sm {
-    min-height: 2.5rem;
-    padding: 0.55rem 1.15rem;
-    font-size: 0.6875rem;
-  }
-  .btn-lg {
-    min-height: 3.5rem;
-    padding: 1rem 2.25rem;
-    font-size: 0.8125rem;
-  }
-  .btn-block {
-    width: 100%;
-  }
-
-  /* Asosiy: to'q jigarrang + qaymoq matn (15.9:1) */
-  .btn-primary {
-    background-color: var(--color-brown);
-    color: var(--color-cream);
-    box-shadow:
-      inset 0 1px 0 rgba(247, 217, 156, 0.14),
-      0 10px 24px -14px rgba(24, 15, 15, 0.7);
-  }
-  .btn-primary:hover:not(:disabled) {
-    background-color: var(--color-cocoa);
-    box-shadow:
-      inset 0 1px 0 rgba(247, 217, 156, 0.2),
-      inset 0 -2px 0 var(--color-gold),
-      0 14px 28px -14px rgba(24, 15, 15, 0.75);
-  }
-
-  /* Ikkinchi darajali: ivory + jigarrang matn + nozik chegara */
-  .btn-secondary {
-    background-color: var(--color-paper);
-    color: var(--color-brown);
-    border-color: var(--color-line-strong);
-  }
-  .btn-secondary:hover:not(:disabled) {
-    background-color: var(--color-ivory);
-    border-color: var(--color-bronze);
-  }
-
-  /* Premium: shampan oltin + to'q matn (7.9:1) */
-  .btn-gold {
-    background: linear-gradient(180deg, #e3b878 0%, var(--color-gold) 100%);
-    color: var(--color-brown);
-    box-shadow:
-      inset 0 1px 0 rgba(255, 253, 246, 0.45),
-      0 10px 26px -14px rgba(217, 168, 103, 0.75);
-  }
-  .btn-gold:hover:not(:disabled) {
-    background: linear-gradient(180deg, var(--color-gold-light) 0%, #e3b878 100%);
-  }
-
-  /* To'q fondagi ikkinchi darajali tugma */
-  .btn-outline-light {
-    color: var(--color-cream);
-    border-color: rgba(252, 248, 229, 0.32);
-    background-color: rgba(252, 248, 229, 0.04);
-  }
-  .btn-outline-light:hover:not(:disabled) {
-    border-color: var(--color-gold);
-    color: var(--color-gold-light);
-    background-color: rgba(217, 168, 103, 0.08);
-  }
-
-  /* Matnli havola-tugma */
-  .btn-link {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    font-size: 0.78rem;
+    padding: 0.9rem 1.9rem;
+    font-size: 0.8rem;
     font-weight: 600;
     letter-spacing: 0.14em;
     text-transform: uppercase;
-    color: var(--color-brown);
-    text-decoration: underline;
-    text-decoration-color: var(--color-gold);
-    text-decoration-thickness: 1px;
-    text-underline-offset: 0.45em;
+    color: var(--color-espresso);
+    background: linear-gradient(110deg, var(--color-champagne), var(--color-gold) 55%, #c08a4a);
+    box-shadow:
+      0 0 0 1px rgba(247, 217, 156, 0.35) inset,
+      0 12px 30px -12px rgba(217, 168, 103, 0.55);
     transition:
-      color 0.25s ease,
-      text-decoration-color 0.25s ease;
+      transform 0.35s cubic-bezier(0.16, 1, 0.3, 1),
+      box-shadow 0.35s ease;
   }
-  .btn-link:hover {
-    color: var(--color-bronze);
-    text-decoration-color: var(--color-bronze);
+  .btn-gold::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    background: linear-gradient(110deg, transparent 30%, rgba(255, 255, 255, 0.45) 50%, transparent 70%);
+    transform: translateX(-120%);
+    transition: transform 0.8s ease;
+  }
+  .btn-gold:hover {
+    transform: translateY(-2px);
+    box-shadow:
+      0 0 0 1px rgba(247, 217, 156, 0.5) inset,
+      0 18px 40px -14px rgba(217, 168, 103, 0.75);
+  }
+  .btn-gold:hover::after {
+    transform: translateX(120%);
   }
 
-  /* Ikonka tugma (44px sensor maydoni) */
-  .icon-btn {
+  .btn-ghost {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 2.75rem;
-    height: 2.75rem;
-    flex-shrink: 0;
+    gap: 0.6rem;
     border-radius: 9999px;
-    border: 1px solid var(--color-line);
-    background-color: var(--color-paper);
-    color: var(--color-brown);
-    transition:
-      border-color 0.25s ease,
-      background-color 0.25s ease,
-      color 0.25s ease;
+    padding: 0.9rem 1.9rem;
+    font-size: 0.8rem;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--color-pearl);
+    border: 1px solid rgba(242, 232, 208, 0.25);
+    background: rgba(24, 15, 15, 0.25);
+    backdrop-filter: blur(8px);
+    transition: all 0.35s ease;
   }
-  .icon-btn:hover {
-    border-color: var(--color-bronze);
-    background-color: var(--color-ivory);
-  }
-
-  .spinner {
-    width: 1rem;
-    height: 1rem;
-    border-radius: 9999px;
-    border: 2px solid currentColor;
-    border-right-color: transparent;
-    animation: spin 0.8s linear infinite;
+  .btn-ghost:hover {
+    border-color: var(--color-gold);
+    color: var(--color-champagne);
+    background: rgba(217, 168, 103, 0.08);
   }
 
-  /* ── Kartalar ──────────────────────────────────────────── */
-  .card {
-    border-radius: 1.25rem;
-    border: 1px solid var(--color-line);
-    background-color: var(--color-paper);
-    box-shadow: var(--shadow-soft);
-  }
-
-  /* Rasm ramkasi: nozik ichki chegara */
-  .media-frame {
+  /* Oltin ingichka chegara (gradient border) */
+  .gold-ring {
     position: relative;
-    overflow: hidden;
-    border-radius: 1.25rem;
-    background-color: var(--color-ivory);
   }
-  .media-frame::after {
+  .gold-ring::before {
     content: "";
     position: absolute;
     inset: 0;
     border-radius: inherit;
-    box-shadow: inset 0 0 0 1px rgba(38, 25, 24, 0.06);
+    padding: 1px;
+    background: linear-gradient(140deg, rgba(247, 217, 156, 0.45), rgba(73, 56, 51, 0.15) 40%, rgba(217, 168, 103, 0.35));
+    -webkit-mask:
+      linear-gradient(#000 0 0) content-box,
+      linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
     pointer-events: none;
-  }
-
-  /* ── Chiplar (filtrlar) ───────────────────────────────── */
-  .chip {
-    display: inline-flex;
-    align-items: center;
-    min-height: 2.5rem;
-    border-radius: 9999px;
-    border: 1px solid var(--color-line-strong);
-    background-color: var(--color-paper);
-    padding: 0.5rem 1.15rem;
-    font-size: 0.75rem;
-    font-weight: 500;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: var(--color-brown);
-    transition:
-      border-color 0.25s ease,
-      background-color 0.25s ease,
-      color 0.25s ease;
-  }
-  .chip:hover {
-    border-color: var(--color-bronze);
-  }
-  .chip[aria-current="page"] {
-    border-color: var(--color-brown);
-    background-color: var(--color-brown);
-    color: var(--color-cream);
-    font-weight: 600;
-    box-shadow: inset 0 -2px 0 var(--color-gold);
-  }
-
-  /* Belgilar (badge) */
-  .badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.4rem;
-    border-radius: 9999px;
-    padding: 0.3rem 0.7rem;
-    font-size: 0.625rem;
-    font-weight: 600;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-  }
-
-  /* ── Formalar ─────────────────────────────────────────── */
-  .field-label {
-    display: block;
-    margin-bottom: 0.45rem;
-    font-size: 0.6875rem;
-    font-weight: 600;
-    letter-spacing: 0.16em;
-    text-transform: uppercase;
-    color: var(--color-brown);
-  }
-  .field-input {
-    width: 100%;
-    min-height: 3.1rem;
-    border-radius: 0.875rem;
-    border: 1px solid var(--color-line-strong);
-    background-color: var(--color-paper);
-    padding: 0.8rem 1rem;
-    font-size: 1rem; /* iOS'da avto-zoom bo'lmasin */
-    color: var(--color-brown);
-    outline: none;
-    transition:
-      border-color 0.2s ease,
-      box-shadow 0.2s ease;
-  }
-  .field-input::placeholder {
-    color: #9a8d82;
-  }
-  .field-input:hover {
-    border-color: #c2ae88;
-  }
-  .field-input:focus {
-    border-color: var(--color-bronze);
-    box-shadow: 0 0 0 4px rgba(217, 168, 103, 0.22);
-  }
-  .field-input[aria-invalid="true"] {
-    border-color: var(--color-error);
-  }
-  .field-input[aria-invalid="true"]:focus {
-    box-shadow: 0 0 0 4px rgba(184, 58, 54, 0.14);
-  }
-  .field-error {
-    display: flex;
-    align-items: center;
-    gap: 0.35rem;
-    margin-top: 0.4rem;
-    font-size: 0.8125rem;
-    font-weight: 500;
-    color: var(--color-error);
-  }
-  .alert-error {
-    display: flex;
-    align-items: flex-start;
-    gap: 0.6rem;
-    border-radius: 0.875rem;
-    border: 1px solid rgba(184, 58, 54, 0.25);
-    background-color: rgba(184, 58, 54, 0.07);
-    padding: 0.8rem 1rem;
-    font-size: 0.875rem;
-    color: var(--color-error);
-  }
-
-  /* Ingichka oltin ajratgich */
-  .rule-gold {
-    height: 1px;
-    border: 0;
-    background: linear-gradient(90deg, transparent, var(--color-gold) 20%, var(--color-gold) 80%, transparent);
-    opacity: 0.55;
-  }
-}
-
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
   }
 }
 
@@ -518,18 +198,18 @@ body {
   animation: fade-in 0.25s ease both;
 }
 .dialog-in .dialog-panel {
-  animation: sheet-up 0.4s var(--ease-brand) both;
+  animation: sheet-up 0.45s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 .dialog-out .dialog-backdrop {
-  animation: fade-in 0.2s ease reverse both;
+  animation: fade-in 0.22s ease reverse both;
 }
 .dialog-out .dialog-panel {
-  animation: sheet-down 0.2s ease-in both;
+  animation: sheet-down 0.22s ease-in both;
 }
 @keyframes sheet-up {
   from {
     opacity: 0;
-    transform: translateY(32px);
+    transform: translateY(40px) scale(0.98);
   }
   to {
     opacity: 1;
@@ -539,22 +219,71 @@ body {
 @keyframes sheet-down {
   to {
     opacity: 0;
-    transform: translateY(24px);
+    transform: translateY(30px) scale(0.98);
   }
 }
 
-/* ── Nozik "grain" teksturasi (faqat to'q bo'limlarda) ────── */
-.grain {
-  position: relative;
+/* ── Cheksiz yuguruvchi lenta ─────────────────────────────── */
+.marquee {
+  display: flex;
+  width: max-content;
+  animation: marquee 38s linear infinite;
 }
+.marquee:hover {
+  animation-play-state: paused;
+}
+@keyframes marquee {
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+/* ── Nozik "grain" teksturasi (premium hissiyot) ──────────── */
 .grain::after {
   content: "";
   pointer-events: none;
   position: absolute;
   inset: 0;
-  opacity: 0.05;
+  opacity: 0.06;
   mix-blend-mode: overlay;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* Hero rasmining sekin kattalashishi */
+@keyframes hero-zoom {
+  from {
+    transform: scale(1.12);
+  }
+  to {
+    transform: scale(1);
+  }
+}
+.hero-zoom {
+  animation: hero-zoom 2.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* Hero'dagi pastga ishora */
+@keyframes scroll-dot {
+  0% {
+    transform: translateY(0);
+    opacity: 0;
+  }
+  30% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(14px);
+    opacity: 0;
+  }
+}
+.scroll-dot {
+  animation: scroll-dot 1.8s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .marquee {
+    animation: none;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
