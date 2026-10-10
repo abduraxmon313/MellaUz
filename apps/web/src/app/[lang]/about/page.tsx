@@ -40,7 +40,7 @@ export default async function AboutPage({
   return (
     <>
       {/* Hero */}
-      <section className="relative flex min-h-[70vh] items-end overflow-hidden">
+      <section className="on-dark relative flex min-h-[62vh] items-end overflow-hidden bg-espresso lg:min-h-[70vh]">
         <Image
           src={aboutHero}
           alt=""
@@ -50,40 +50,37 @@ export default async function AboutPage({
           sizes="100vw"
           className="object-cover"
         />
-        <div className="absolute inset-0 bg-linear-to-t from-espresso via-espresso/50 to-espresso/20" />
-        <div className="relative mx-auto w-full max-w-5xl px-5 pb-16 lg:px-8 lg:pb-24">
-          <p className="text-xs uppercase tracking-[0.3em] text-gold">
+        <div className="absolute inset-0 bg-linear-to-t from-espresso via-espresso/60 to-espresso/25" />
+        <div className="container-site relative pt-[calc(var(--header-h)+3rem)] pb-14 lg:pb-20">
+          <p className="eyebrow">
             {dict.common.since} · {dict.common.madeIn}
           </p>
-          <h1 className="mt-4 max-w-3xl font-display text-4xl leading-tight text-pearl sm:text-6xl">
-            {dict.about.title}
-          </h1>
+          <h1 className="h-hero mt-4 max-w-3xl text-cream">{dict.about.title}</h1>
         </div>
       </section>
 
       {/* Intro */}
-      <section className="mx-auto max-w-3xl px-5 py-20 text-center lg:px-8 lg:py-28">
+      <section className="mx-auto max-w-3xl px-5 py-16 text-center lg:px-8 lg:py-24">
         <Reveal>
-          <p className="font-display text-2xl leading-relaxed text-pearl/90 sm:text-3xl">
+          <hr className="rule-gold mx-auto mb-8 w-20" />
+          <p className="font-display text-2xl leading-relaxed text-brown sm:text-[1.9rem]">
             {dict.about.intro}
           </p>
         </Reveal>
       </section>
 
-      {/* Sections — alternating */}
-      <section className="space-y-20 pb-24 lg:space-y-28">
+      {/* Bo'limlar — navbatma-navbat */}
+      <section className="space-y-16 pb-20 lg:space-y-24 lg:pb-28">
         {dict.about.sections.map((item, i) => {
           const img = sectionImages[i % sectionImages.length]!;
           const reversed = i % 2 === 1;
           return (
             <div
               key={i}
-              className="mx-auto grid max-w-7xl items-center gap-10 px-5 lg:grid-cols-2 lg:gap-16 lg:px-8"
+              className="container-site grid items-center gap-8 lg:grid-cols-2 lg:gap-20"
             >
               <Reveal
-                className={`relative aspect-[4/3] overflow-hidden rounded-3xl ${
-                  reversed ? "lg:order-2" : ""
-                }`}
+                className={`media-frame aspect-[4/3] shadow-card ${reversed ? "lg:order-2" : ""}`}
               >
                 <Image
                   src={img}
@@ -94,38 +91,31 @@ export default async function AboutPage({
                   className="object-cover"
                 />
               </Reveal>
-              <Reveal delay={120} className={reversed ? "lg:order-1" : ""}>
-                <span className="font-display text-5xl text-gold/25">
+              <Reveal delay={100} className={reversed ? "lg:order-1" : ""}>
+                <span className="font-display text-sm font-semibold tracking-[0.3em] text-bronze">
                   0{i + 1}
                 </span>
-                <h2 className="mt-3 font-display text-3xl leading-tight text-pearl sm:text-4xl">
-                  {item.title}
-                </h2>
-                <p className="mt-5 text-base leading-relaxed text-pearl/70">
-                  {item.text}
-                </p>
+                <h2 className="h-section mt-3 text-brown">{item.title}</h2>
+                <p className="lead mt-5">{item.text}</p>
               </Reveal>
             </div>
           );
         })}
       </section>
 
-      {/* Future */}
-      <section className="border-t border-mocha/20 bg-dark-chocolate/40">
+      {/* Kelajak */}
+      <section className="on-dark grain relative overflow-hidden bg-brown">
         <div className="mx-auto max-w-3xl px-5 py-20 text-center lg:px-8 lg:py-28">
           <Reveal>
-            <h2 className="font-display text-3xl text-champagne sm:text-4xl">
-              {dict.about.futureTitle}
-            </h2>
-            <p className="mt-6 text-base leading-relaxed text-pearl/75">
-              {dict.about.futureText}
-            </p>
+            <h2 className="h-section text-cream">{dict.about.futureTitle}</h2>
+            <p className="lead mt-6">{dict.about.futureText}</p>
             <div className="mt-10 flex justify-center">
               <OrderDialog
                 dict={dict}
                 locale={locale}
                 label={dict.nav.order}
-                variant="solid"
+                variant="gold"
+                size="lg"
               />
             </div>
           </Reveal>

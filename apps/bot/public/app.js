@@ -10,7 +10,7 @@ const tg = window.Telegram ? window.Telegram.WebApp : null;
 if (tg) { try { tg.ready(); tg.expand(); tg.enableClosingConfirmation && tg.enableClosingConfirmation(); } catch (e) {} }
 
 const TASHKENT = { lat: 41.311081, lng: 69.279729 };
-const THEME_BG = '#180f0f';
+const THEME_BG = '#2a1d1b';
 const CART_KEY = 'mella_cart_v1';
 const FAV_KEY = 'mella_fav_v1';
 
@@ -26,7 +26,7 @@ State.lang = String(State.lang).slice(0, 2);
 if (!['uz', 'ru', 'en'].includes(State.lang)) State.lang = 'uz';
 
 let _ymapsPromise = null;
-const MAP_PIN_SVG = '<svg viewBox="0 0 24 24" width="42" height="42" fill="#d9a867" stroke="#180f0f" stroke-width="1.4"><path d="M12 23s8-7 8-13a8 8 0 1 0-16 0c0 6 8 13 8 13Z"/><circle cx="12" cy="10" r="3" fill="#180f0f" stroke="none"/></svg>';
+const MAP_PIN_SVG = '<svg viewBox="0 0 24 24" width="42" height="42" fill="#d9a867" stroke="#2a1d1b" stroke-width="1.4"><path d="M12 23s8-7 8-13a8 8 0 1 0-16 0c0 6 8 13 8 13Z"/><circle cx="12" cy="10" r="3" fill="#180f0f" stroke="none"/></svg>';
 
 /* ── Lucide uslubidagi SVG ikonalar ── */
 const ICONS = {
@@ -87,10 +87,6 @@ const I18N = {
   hero_eyebrow: { uz: 'Yangi mavsum', ru: 'Новый сезон', en: 'New season' },
   hero_title: { uz: 'Tabiiy charm.<br>Nafis uslub.', ru: 'Натуральная кожа.<br>Изящный стиль.', en: 'Genuine leather.<br>Refined style.' },
   hero_cta: { uz: 'Ko‘rish', ru: 'Смотреть', en: 'Explore' },
-  pr_leather: { uz: 'Tabiiy charm', ru: 'Натуральная кожа', en: 'Genuine leather' },
-  pr_delivery: { uz: 'Yetkazib berish', ru: 'Доставка', en: 'Delivery' },
-  pr_quality: { uz: 'Sifat kafolati', ru: 'Гарантия качества', en: 'Quality guarantee' },
-  pr_cash: { uz: 'Qabul qilganda to‘lov', ru: 'Оплата при получении', en: 'Pay on delivery' },
   all: { uz: 'Hammasi', ru: 'Все', en: 'All' },
   add: { uz: 'Savatga', ru: 'В корзину', en: 'Add to bag' },
   choose: { uz: 'Tanlash', ru: 'Выбрать', en: 'Select' },
@@ -396,6 +392,7 @@ function renderCategories() {
 const SORTS = [['popular', 'sort_popular', 'flame'], ['new', 'sort_new', 'sparkles'], ['cheap', 'sort_cheap', 'trendDown'], ['expensive', 'sort_expensive', 'trendUp']];
 function renderSortbar() {
   const wrap = el('sortbar');
+  if (!wrap) return; // saralash qatori olib tashlangan — standart: 'popular'
   wrap.innerHTML = SORTS.map(([key, lbl, ic]) => `<button class="sort-chip ${State.sort === key ? 'active' : ''}" data-sort="${key}"><span data-ic="${ic}"></span>${L(lbl)}</button>`).join('');
   applyIcons(wrap);
   wrap.querySelectorAll('[data-sort]').forEach((b) => b.onclick = () => {

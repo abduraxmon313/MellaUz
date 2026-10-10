@@ -18,15 +18,17 @@
   --ivory: #fcf8e5;
 
   /* ── Semantik ── */
-  --bg: var(--espresso);
-  --bg-2: #1f1413;
-  --card: #231716;
-  --card-2: #2c1e1c;
-  --line: rgba(242, 232, 208, .09);
-  --line-2: rgba(242, 232, 208, .05);
-  --text: var(--pearl);
-  --text-2: rgba(242, 232, 208, .78);
-  --muted: rgba(242, 232, 208, .52);
+  /* Fon espresso'dan biroz yorug'roq va iliqroq; matn — qaymoq (#fcf8e5) */
+  --cream: #fcf8e5;
+  --bg: #2a1d1b;
+  --bg-2: #31221f;
+  --card: #382725;
+  --card-2: #432f2c;
+  --line: rgba(252, 248, 229, .12);
+  --line-2: rgba(252, 248, 229, .07);
+  --text: var(--cream);
+  --text-2: rgba(252, 248, 229, .82);
+  --muted: rgba(252, 248, 229, .64);
 
   --primary: var(--gold);
   --primary-strong: var(--champagne);
@@ -51,7 +53,7 @@
   --grad-text: linear-gradient(100deg, var(--champagne) 0%, var(--gold) 45%, var(--dark-gold) 100%);
   --grad-ring: linear-gradient(140deg, rgba(247, 217, 156, .45), rgba(73, 56, 51, .15) 40%, rgba(217, 168, 103, .35));
   --grad-hero: radial-gradient(120% 90% at 85% 0%, rgba(217, 168, 103, .28) 0%, rgba(217, 168, 103, 0) 55%),
-    linear-gradient(160deg, #2c1e1c 0%, #1b1110 100%);
+    linear-gradient(160deg, #46322e 0%, #2f211e 100%);
 
   /* ── Soyalar ── */
   --sh-xs: 0 1px 2px rgba(0, 0, 0, .3);
@@ -97,7 +99,7 @@ html, body {
   /* Cormorant'da raqamlar sukut bo'yicha "eski uslub" — narx/raqamlar tekis bo'lsin. */
   font-variant-numeric: lining-nums;
 }
-body { padding-bottom: calc(var(--nav-h) + env(safe-area-inset-bottom)); min-height: 100vh; }
+body { background: radial-gradient(130% 55% at 50% -12%, rgba(247, 217, 156, .1), rgba(247, 217, 156, 0) 62%) no-repeat, var(--bg); padding-bottom: calc(var(--nav-h) + env(safe-area-inset-bottom)); min-height: 100vh; }
 button { font-family: inherit; cursor: pointer; border: none; background: none; color: inherit; }
 input, textarea { font-family: inherit; font-size: 16px; color: var(--text); }
 svg { display: block; }
@@ -171,7 +173,7 @@ a { color: inherit; }
   position: sticky; top: 0; z-index: 50;
   display: flex; align-items: center; justify-content: space-between; gap: 12px;
   padding: calc(env(safe-area-inset-top) + 12px) 20px 12px;
-  background: rgba(24, 15, 15, .82);
+  background: rgba(42, 29, 27, .88);
   backdrop-filter: saturate(160%) blur(18px);
   -webkit-backdrop-filter: saturate(160%) blur(18px);
   border-bottom: 1px solid var(--line-2);
@@ -217,10 +219,6 @@ body.has-fab-cart .home-scroll { padding-bottom: 112px; }
 .hero-title { font-family: var(--font-display); font-size: 28px; line-height: 1.05; margin: 8px 0 14px; }
 .hero-cta { align-self: flex-start; }
 
-.promise-row { display: flex; gap: 8px; margin: 12px -20px 0; padding: 0 20px; overflow-x: auto; scrollbar-width: none; }
-.promise-row::-webkit-scrollbar { display: none; }
-.promise { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 7px; padding: 8px 12px; border-radius: var(--r-full); border: 1px solid var(--line); color: var(--text-2); font-size: 12px; font-weight: 600; white-space: nowrap; }
-.promise svg { width: 15px; height: 15px; color: var(--gold); }
 
 /* ═══════════════════════════════════════════════════════════
    KATEGORIYALAR / SARALASH
@@ -235,11 +233,6 @@ body.has-fab-cart .home-scroll { padding-bottom: 112px; }
 .cat-chip.active .cnt { color: rgba(24, 15, 15, .6); }
 .cat-chip:active { transform: scale(.95); }
 
-.sortbar { display: flex; gap: 6px; overflow-x: auto; margin: 12px -20px 0; padding: 2px 20px; scrollbar-width: none; }
-.sortbar::-webkit-scrollbar { display: none; }
-.sort-chip { display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 12px; border-radius: var(--r-full); border: 1px solid transparent; font-size: 12px; font-weight: 600; color: var(--muted); white-space: nowrap; transition: all var(--t) var(--ease); }
-.sort-chip svg { width: 14px; height: 14px; }
-.sort-chip.active { border-color: var(--primary-line); color: var(--champagne); background: var(--primary-tint); }
 
 .section-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin: 22px 0 14px; }
 .section-title { font-family: var(--font-display); font-size: 26px; font-weight: 500; line-height: 1.1; }
@@ -296,7 +289,7 @@ body.has-fab-cart .home-scroll { padding-bottom: 112px; }
 .skeleton { display: flex; flex-direction: column; gap: 10px; }
 .sk-img { aspect-ratio: 4/5; border-radius: var(--r-lg); }
 .sk-line { height: 11px; border-radius: 6px; }
-.sk-img, .sk-line, .sk-block { background: linear-gradient(100deg, #231716 30%, #2f211f 50%, #231716 70%); background-size: 200% 100%; animation: shimmer 1.4s infinite; }
+.sk-img, .sk-line, .sk-block { background: linear-gradient(100deg, #382725 30%, #46322e 50%, #382725 70%); background-size: 200% 100%; animation: shimmer 1.4s infinite; }
 .sk-block { border-radius: var(--r-lg); }
 
 /* ═══════════════════════════════════════════════════════════
@@ -317,7 +310,7 @@ body.has-fab-cart .home-scroll { padding-bottom: 112px; }
 .btn:disabled { opacity: .4; pointer-events: none; box-shadow: none; }
 .btn svg { width: 18px; height: 18px; }
 .btn-sm { width: auto; height: 40px; padding: 0 18px; font-size: 11px; }
-.btn-ghost { background: rgba(24, 15, 15, .25); color: var(--pearl); border: 1px solid rgba(242, 232, 208, .22); box-shadow: none; }
+.btn-ghost { background: rgba(252, 248, 229, .06); color: var(--cream); border: 1px solid rgba(252, 248, 229, .24); box-shadow: none; }
 .btn-ghost::after { display: none; }
 .btn-ghost:active { background: var(--primary-tint); border-color: var(--gold); }
 .btn-row { display: flex; gap: 10px; }
@@ -339,7 +332,7 @@ body.has-fab-cart .home-scroll { padding-bottom: 112px; }
 .qty button svg { width: 14px; height: 14px; stroke-width: 2.4; }
 .qty button:active { transform: scale(.85); }
 .qty button:disabled { opacity: .35; }
-.qty span { min-width: 24px; text-align: center; font-weight: 700; font-size: 13.5px; }
+.qty > span { min-width: 24px; text-align: center; font-weight: 700; font-size: 13.5px; }
 
 .cart-footer { position: sticky; bottom: calc(var(--nav-h) + env(safe-area-inset-bottom)); margin-top: 8px; padding: 0 14px 6px; }
 .cf-inner { background: rgba(35, 23, 22, .94); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border: 1px solid var(--line); border-radius: var(--r-xl); padding: 18px; box-shadow: var(--sh-lg); }
@@ -596,7 +589,7 @@ body.has-fab-cart .home-scroll { padding-bottom: 112px; }
 /* ═══════════════════════════════════════════════════════════
    PASTKI NAVIGATSIYA
    ═══════════════════════════════════════════════════════════ */
-.bottom-nav { position: fixed; left: 0; right: 0; bottom: 0; z-index: 100; height: calc(var(--nav-h) + env(safe-area-inset-bottom)); padding-bottom: env(safe-area-inset-bottom); display: flex; background: rgba(24, 15, 15, .9); backdrop-filter: saturate(160%) blur(20px); -webkit-backdrop-filter: saturate(160%) blur(20px); border-top: 1px solid var(--line); }
+.bottom-nav { position: fixed; left: 0; right: 0; bottom: 0; z-index: 100; height: calc(var(--nav-h) + env(safe-area-inset-bottom)); padding-bottom: env(safe-area-inset-bottom); display: flex; background: rgba(42, 29, 27, .94); backdrop-filter: saturate(160%) blur(20px); -webkit-backdrop-filter: saturate(160%) blur(20px); border-top: 1px solid var(--line); }
 .nav-item { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px; color: var(--muted); position: relative; transition: color var(--t) var(--ease); }
 .nav-item svg { width: 22px; height: 22px; transition: transform var(--t) var(--ease-spring); }
 .nav-item small { font-size: 10px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; }

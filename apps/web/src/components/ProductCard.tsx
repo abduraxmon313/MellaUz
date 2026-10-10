@@ -19,58 +19,60 @@ export function ProductCard({
 }) {
   const href = `/${locale}/product/${product.slug}`;
   return (
-    <article className="group lift">
-      <Link href={href} className="block">
-        <div className="gold-ring relative aspect-[4/5] overflow-hidden rounded-[22px] bg-chocolate/40">
+    <article className="group flex h-full flex-col">
+      <Link href={href} className="block rounded-[1.25rem]" tabIndex={-1} aria-hidden>
+        <div className="media-frame aspect-[4/5] transition-shadow duration-500 group-hover:shadow-card">
           <Image
             src={product.images[0] ?? "/images/products/samarqand-1.jpg"}
-            alt={product.name}
+            alt=""
             fill
             sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
             preload={priority}
-            className="object-cover transition-transform duration-[1200ms] ease-out group-hover:scale-[1.06]"
+            className={`object-cover transition-transform duration-[900ms] ease-out group-hover:scale-[1.04] ${
+              product.inStock ? "" : "opacity-75 grayscale-[35%]"
+            }`}
           />
-          <div className="absolute inset-0 bg-linear-to-t from-espresso/70 via-transparent to-transparent opacity-0 transition-opacity duration-500 group-hover:opacity-100" />
-          <span className="absolute inset-x-3 bottom-3 flex translate-y-3 items-center justify-between rounded-full bg-pearl/90 px-4 py-2.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-espresso opacity-0 backdrop-blur transition-all duration-500 group-hover:translate-y-0 group-hover:opacity-100">
+          <span className="absolute inset-x-3 bottom-3 hidden translate-y-2 items-center justify-between rounded-full bg-paper/95 px-4 py-2.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-brown opacity-0 shadow-soft backdrop-blur transition-all duration-300 group-hover:translate-y-0 group-hover:opacity-100 sm:flex">
             {dict.common.details}
             <ArrowIcon />
           </span>
           {!product.inStock && (
-            <span className="absolute left-3 top-3 rounded-full bg-espresso/80 px-3 py-1 text-[10px] uppercase tracking-wider text-pearl/80 backdrop-blur">
+            <span className="badge absolute left-3 top-3 bg-paper/95 text-muted shadow-soft">
               {dict.catalog.outOfStock}
             </span>
           )}
           {product.oldPrice && product.inStock && (
-            <span className="absolute left-3 top-3 rounded-full bg-gold px-3 py-1 text-[10px] font-semibold uppercase tracking-wider text-espresso">
-              Sale
-            </span>
+            <span className="badge absolute left-3 top-3 bg-gold text-brown">Sale</span>
           )}
         </div>
       </Link>
 
-      <div className="mt-4 px-1">
-        <p className="text-[11px] uppercase tracking-wider text-gold/70">
+      <div className="flex flex-1 flex-col px-0.5 pt-3.5">
+        <p className="truncate text-[10.5px] font-semibold uppercase tracking-[0.16em] text-bronze">
           {product.categoryName}
         </p>
-        <h3 className="mt-1 font-display text-lg leading-snug text-pearl">
-          <Link href={href} className="transition hover:text-champagne">
+        <h3 className="mt-1 font-display text-[1.2rem] leading-snug text-brown">
+          <Link
+            href={href}
+            className="rounded-sm underline-offset-4 transition-colors hover:text-bronze"
+          >
             {product.name}
           </Link>
         </h3>
-        <div className="mt-1.5 flex items-baseline gap-2">
+        <div className="mt-auto flex flex-wrap items-baseline gap-x-2 pt-1.5">
           {product.price > 0 ? (
             <>
-              <span className="text-sm text-pearl/90">
+              <span className="text-[15px] font-semibold tabular-nums text-brown">
                 {formatPrice(product.price, locale)} {dict.common.currency}
               </span>
               {product.oldPrice && (
-                <span className="text-xs text-pearl/40 line-through">
+                <span className="text-xs tabular-nums text-muted line-through">
                   {formatPrice(product.oldPrice, locale)}
                 </span>
               )}
             </>
           ) : (
-            <span className="text-sm text-pearl/60">{dict.common.details}</span>
+            <span className="text-sm text-muted">{dict.common.details}</span>
           )}
         </div>
       </div>
