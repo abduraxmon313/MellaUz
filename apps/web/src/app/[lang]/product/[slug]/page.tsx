@@ -11,6 +11,10 @@ import { OrderDialog } from "@/components/OrderDialog";
 import { Reveal } from "@/components/Reveal";
 import { Breadcrumbs } from "@/components/PageHeader";
 
+
+// Admin panelda qo'shilgan mahsulotlar: saqlanganda darhol, aks holda ko'pi bilan 60 soniyada yangilanadi.
+export const revalidate = 60;
+
 export async function generateStaticParams() {
   const { MockCatalogProvider } = await import("@/lib/catalog/mock-provider");
   const provider = new MockCatalogProvider();
@@ -166,7 +170,29 @@ export default async function ProductPage({
               </span>
             </div>
 
-            <p className="mt-6 text-base leading-relaxed text-muted">{view.description}</p>
+            <p className="mt-6 whitespace-pre-line text-base leading-relaxed text-muted">{view.description}</p>
+
+            {view.sizes.length > 0 && (
+              <div className="mt-6">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted">
+                  {dict.product.sizes}
+                </p>
+                <ul className="mt-2.5 flex flex-wrap gap-2">
+                  {view.sizes.map((s) => (
+                    <li
+                      key={s.label}
+                      className={`inline-flex h-10 min-w-11 items-center justify-center rounded-xl border px-3 text-sm font-semibold tabular-nums ${
+                        s.inStock
+                          ? "border-line-strong bg-paper text-brown"
+                          : "border-line bg-ivory text-muted line-through"
+                      }`}
+                    >
+                      {s.label}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
 
             <dl className="card mt-8 divide-y divide-line px-5 text-sm">
               <div className="flex gap-4 py-3.5">

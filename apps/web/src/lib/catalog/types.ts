@@ -32,6 +32,8 @@ export interface Product {
   stock: number;
   images: string[];
   featured?: boolean;
+  /** O'lchamlar (masalan 36…40) — admin panelda kiritiladi. */
+  sizes?: { label: string; inStock: boolean }[];
   /** ERP yangilagan vaqt (ixtiyoriy, kelajakda sinxronlash uchun) */
   updatedAt?: string;
 }
@@ -49,6 +51,7 @@ export interface ProductView {
   oldPrice?: number;
   inStock: boolean;
   images: string[];
+  sizes: { label: string; inStock: boolean }[];
 }
 
 export interface CategoryView {

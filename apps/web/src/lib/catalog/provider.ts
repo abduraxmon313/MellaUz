@@ -48,6 +48,7 @@ export function toProductView(
     oldPrice: product.oldPrice,
     inStock: product.stock > 0,
     images: product.images,
+    sizes: product.sizes ?? [],
   };
 }
 
@@ -66,16 +67,24 @@ let cached: CatalogProvider | null = null;
  * Katalog provayderini tanlaydi.
  * - `ERP_API_BASE_URL` o'rnatilgan bo'lsa — haqiqiy ERP (HTTP) provayderi.
  * - Aks holda — namuna (mock) ma'lumot.
+ * - DATABASE_URL bo'lsa — ustiga admin panelda qo'lda kiritilgan mahsulotlar qo'shiladi.
  */
 export async function getCatalog(): Promise<CatalogProvider> {
   if (cached) return cached;
 
+  let base: CatalogProvider;
   if (process.env.ERP_API_BASE_URL) {
     const { ErpCatalogProvider } = await import("./erp-provider");
-    cached = new ErpCatalogProvider();
+    base = new ErpCatalogProvider();
   } else {
     const { MockCatalogProvider } = await import("./mock-provider");
-    cached = new MockCatalogProvider();
+    base = new MockCatalogProvider();
+  }
+  if (process.env.DATABASE_URL) {
+    const { CombinedCatalogProvider } = await import("./combined-provider");
+    cached = new CombinedCatalogProvider(base);
+  } else {
+    cached = base;
   }
   return cached;
 }

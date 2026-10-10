@@ -24,6 +24,7 @@ import { bots } from "./telegram.js";
  *   GET  /api/orders            mening buyurtmalarim
  *   GET  /api/orders/:id
  *   POST /api/lang              tanlangan tilni bot profiliga saqlash
+ *   GET  /media/:id             sayt admin panelida yuklangan rasmlar (bazadan)
  *   GET  /img/:key              BILLZ rasmlari — o'z serverimizdan (BILLZ CDN'ga to'g'ridan-to'g'ri ulanish taqiqlangan)
  */
 
@@ -224,6 +225,19 @@ export async function registerApi(app: FastifyInstance) {
     } catch (e) {
       return sendError(reply, e);
     }
+  });
+
+  // Qo'lda kiritilgan mahsulot rasmlari — bot bazasidan (sayt admin paneli yozadi).
+  // ID har yuklashda yangi bo'ladi, shuning uchun uzoq kesh xavfsiz.
+  app.get("/media/:id", async (req, reply) => {
+    const { id } = req.params as { id: string };
+    if (!/^[a-f0-9]{32}$/.test(id)) return reply.code(404).send();
+    const img = await store.getManualImage(id).catch(() => null);
+    if (!img) return reply.code(404).send();
+    reply.header("content-type", img.contentType);
+    reply.header("cache-control", "public, max-age=31536000, immutable");
+    reply.header("x-content-type-options", "nosniff");
+    return reply.send(img.data);
   });
 
   app.get("/img/:key", async (req, reply) => {
