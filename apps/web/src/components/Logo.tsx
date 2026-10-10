@@ -26,10 +26,10 @@ export function MellaEmblem({
     >
       <defs>
         <linearGradient id={grad} x1="300" y1="160" x2="740" y2="650" gradientUnits="userSpaceOnUse">
-          <stop offset="0" stopColor="#d9b06c" />
-          <stop offset="0.45" stopColor="#a86f37" />
-          <stop offset="0.75" stopColor="#e2bd7c" />
-          <stop offset="1" stopColor="#6e4520" />
+          <stop offset="0" stopColor="#e6bf7f" />
+          <stop offset="0.45" stopColor="#b07a3e" />
+          <stop offset="0.75" stopColor="#d9a867" />
+          <stop offset="1" stopColor="#7a4e24" />
         </linearGradient>
       </defs>
       <g stroke={`url(#${grad})`} strokeLinecap="round" strokeLinejoin="round">
@@ -51,11 +51,23 @@ export function MellaEmblem({
   );
 }
 
-/** "Mella" so'z belgisi — oltin gradientli serif yozuv. */
-export function MellaWordmark({ className = "" }: { className?: string }) {
+/**
+ * "Mella" so'z belgisi.
+ *  - tone="light" (yorug' fon): to'q jigarrang — maksimal o'qilish.
+ *  - tone="dark"  (to'q fon): shampan-oltin gradient.
+ */
+export function MellaWordmark({
+  className = "",
+  tone = "light",
+}: {
+  className?: string;
+  tone?: "light" | "dark";
+}) {
   return (
     <span
-      className={`font-display text-gradient-gold leading-none tracking-[0.04em] ${className}`}
+      className={`font-display leading-none tracking-[0.04em] ${
+        tone === "dark" ? "text-gradient-gold" : "text-brown"
+      } ${className}`}
       style={{ fontWeight: 500 }}
     >
       Mella
@@ -63,26 +75,28 @@ export function MellaWordmark({ className = "" }: { className?: string }) {
   );
 }
 
-/** Sarlavhadagi logotip: emblema + so'z belgisi. */
+/** Logotip: emblema + so'z belgisi. */
 export function Logo({
   locale,
   className = "",
   size = "md",
+  tone = "light",
 }: {
   locale: Locale;
   className?: string;
   size?: "md" | "lg";
+  tone?: "light" | "dark";
 }) {
-  const emblem = size === "lg" ? "h-14 w-14" : "h-9 w-9 sm:h-10 sm:w-10";
+  const emblem = size === "lg" ? "h-12 w-12" : "h-9 w-9 sm:h-10 sm:w-10";
   const word = size === "lg" ? "text-4xl" : "text-[1.7rem] sm:text-3xl";
   return (
     <Link
       href={`/${locale}`}
       aria-label="MELLA — bosh sahifa"
-      className={`group inline-flex items-end gap-1.5 ${className}`}
+      className={`group inline-flex items-end gap-1.5 rounded-md ${className}`}
     >
       <MellaEmblem className={`${emblem} transition-transform duration-500 group-hover:-rotate-6`} />
-      <MellaWordmark className={word} />
+      <MellaWordmark className={word} tone={tone} />
     </Link>
   );
 }
