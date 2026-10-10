@@ -16,29 +16,23 @@ export function LanguageSwitcher({ current }: { current: Locale }) {
   }
 
   return (
-    <div
-      className="inline-flex items-center rounded-full border border-line bg-paper p-1"
-      role="group"
-      aria-label="Language"
-    >
-      {locales.map((l) => {
-        const active = l === current;
-        return (
+    <div className="flex items-center gap-1" role="group" aria-label="Language">
+      {locales.map((l, i) => (
+        <span key={l} className="flex items-center">
+          {i > 0 && <span className="px-1 text-pearl/25">·</span>}
           <Link
-            key={l}
             href={hrefFor(l)}
-            hrefLang={l}
-            aria-current={active ? "true" : undefined}
-            className={`inline-flex h-8 min-w-10 items-center justify-center rounded-full px-2.5 text-[11px] tracking-[0.12em] transition-colors ${
-              active
-                ? "bg-brown font-semibold text-cream"
-                : "font-medium text-muted hover:bg-ivory hover:text-brown"
-            }`}
+            aria-current={l === current ? "true" : undefined}
+            className={
+              l === current
+                ? "text-xs font-semibold tracking-wider text-champagne"
+                : "text-xs tracking-wider text-pearl/55 transition hover:text-pearl"
+            }
           >
             {localeShort[l]}
           </Link>
-        );
-      })}
+        </span>
+      ))}
     </div>
   );
 }

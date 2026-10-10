@@ -7,24 +7,13 @@ import type { Dictionary } from "@/i18n/dictionaries";
 import { OrderForm } from "./OrderForm";
 import { MellaEmblem } from "./Logo";
 
-/**
- * solid   — asosiy (to'q jigarrang)       · yorug' fonda
- * outline — ikkinchi darajali (ivory)      · yorug' fonda
- * gold    — premium (shampan oltin)        · to'q fonda asosiy harakat
- * light   — ochiq kontur                   · to'q fonda ikkinchi darajali
- * link    — matnli havola
- */
-type Variant = "solid" | "outline" | "gold" | "light" | "link";
-type Size = "sm" | "md" | "lg";
+type Variant = "solid" | "outline" | "link";
 
 const variants: Record<Variant, string> = {
-  solid: "btn btn-primary",
-  outline: "btn btn-secondary",
-  gold: "btn btn-gold",
-  light: "btn btn-outline-light",
-  link: "btn-link",
+  solid: "btn-gold",
+  outline: "btn-ghost",
+  link: "inline-flex items-center gap-1 text-sm font-medium uppercase tracking-wider text-gold transition hover:text-champagne",
 };
-const sizes: Record<Size, string> = { sm: "btn-sm", md: "", lg: "btn-lg" };
 
 /** Bir nechta dialog/menyu bir vaqtda ochilsa ham skroll to'g'ri tiklanishi uchun. */
 let lockCount = 0;
@@ -55,7 +44,6 @@ export function OrderDialog({
   label,
   product,
   variant = "solid",
-  size = "md",
   className = "",
   onOpen,
 }: {
@@ -64,7 +52,6 @@ export function OrderDialog({
   label: string;
   product?: string;
   variant?: Variant;
-  size?: Size;
   className?: string;
   onOpen?: () => void;
 }) {
@@ -123,7 +110,7 @@ export function OrderDialog({
       }`}
       role="dialog"
       aria-modal="true"
-      aria-labelledby="order-dialog-title"
+      aria-label={dict.order.title}
     >
       {/* Fon — bosilsa yopiladi */}
       <button
@@ -131,23 +118,23 @@ export function OrderDialog({
         tabIndex={-1}
         aria-hidden
         onClick={close}
-        className="dialog-backdrop absolute inset-0 cursor-default bg-espresso/55 backdrop-blur-sm"
+        className="dialog-backdrop absolute inset-0 cursor-default bg-espresso/75 backdrop-blur-md"
       />
 
       <div
         ref={panelRef}
-        className="dialog-panel relative flex max-h-[min(92dvh,760px)] w-full max-w-lg flex-col overflow-hidden rounded-t-3xl border border-line bg-cream shadow-lift sm:rounded-3xl"
+        className="dialog-panel relative flex max-h-[min(92dvh,760px)] w-full max-w-lg flex-col overflow-hidden rounded-t-[28px] border border-gold/15 bg-dark-chocolate shadow-luxe sm:rounded-[28px]"
       >
         {/* Mobil "tortish" chizig'i */}
-        <div className="mx-auto mt-3 h-1 w-10 shrink-0 rounded-full bg-brown/15 sm:hidden" aria-hidden />
+        <div className="mx-auto mt-3 h-1 w-10 shrink-0 rounded-full bg-pearl/15 sm:hidden" />
 
-        <div className="relative shrink-0 overflow-hidden border-b border-line px-6 pt-5 pb-5 sm:px-8 sm:pt-7">
-          <MellaEmblem className="pointer-events-none absolute -right-6 -top-6 h-32 w-32 opacity-[0.08]" />
+        <div className="relative shrink-0 overflow-hidden px-6 pt-5 pb-5 sm:px-8 sm:pt-8">
+          <MellaEmblem className="pointer-events-none absolute -right-6 -top-6 h-36 w-36 opacity-[0.07]" />
           <div className="flex items-start justify-between gap-4">
             <div>
-              <p className="eyebrow">MELLA</p>
-              <h2 id="order-dialog-title" className="mt-2 font-display text-3xl leading-tight text-brown">{dict.order.title}</h2>
-              <p className="mt-1.5 max-w-sm text-sm leading-relaxed text-muted">
+              <p className="text-[11px] uppercase tracking-[0.3em] text-gold/80">MELLA</p>
+              <h2 className="mt-1.5 font-display text-3xl text-champagne">{dict.order.title}</h2>
+              <p className="mt-1.5 max-w-sm text-sm leading-relaxed text-pearl/60">
                 {dict.order.subtitle}
               </p>
             </div>
@@ -155,7 +142,7 @@ export function OrderDialog({
               type="button"
               onClick={close}
               aria-label={dict.nav.closeMenu}
-              className="icon-btn relative z-10"
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-pearl/10 bg-espresso/40 text-pearl/70 transition hover:rotate-90 hover:border-gold/60 hover:text-champagne"
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
                 <path d="M18 6 6 18M6 6l12 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
@@ -164,7 +151,7 @@ export function OrderDialog({
           </div>
         </div>
 
-        <div className="overscroll-contain overflow-y-auto px-6 pt-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] sm:px-8 sm:pb-8">
+        <div className="overscroll-contain overflow-y-auto px-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] sm:px-8 sm:pb-8">
           <OrderForm dict={dict} locale={locale} defaultProduct={product} onDone={close} />
         </div>
       </div>
@@ -180,7 +167,7 @@ export function OrderDialog({
           onOpen?.();
           setOpen(true);
         }}
-        className={`${variants[variant]} ${variant === "link" ? "" : sizes[size]} ${className}`}
+        className={`${variants[variant]} ${className}`}
         aria-haspopup="dialog"
       >
         {label}
