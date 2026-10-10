@@ -1,11 +1,14 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { ArrowIcon } from "@/components/ArrowIcon";
 import { notFound } from "next/navigation";
 import { isLocale, locales } from "@/i18n/config";
 import { getDictionary } from "@/i18n/dictionaries";
 import { getCatalog, toProductView } from "@/lib/catalog/provider";
 import { ProductCard } from "@/components/ProductCard";
 import { Reveal } from "@/components/Reveal";
+import { PageHeader } from "@/components/PageHeader";
+import { CategoryFilter } from "@/components/CategoryFilter";
 
 export async function generateStaticParams() {
   const { MockCatalogProvider } = await import("@/lib/catalog/mock-provider");
@@ -58,57 +61,40 @@ export default async function CategoryPage({
 
   return (
     <>
-      <section className="border-b border-mocha/20 bg-dark-chocolate/40 pt-28 pb-14 lg:pt-36 lg:pb-16">
-        <div className="mx-auto max-w-7xl px-5 lg:px-8">
-          <nav className="mb-5 flex items-center gap-2 text-xs uppercase tracking-wider text-pearl/45">
-            <Link href={`/${locale}/catalog`} className="transition hover:text-champagne">
-              {dict.catalog.title}
-            </Link>
-            <span>/</span>
-            <span className="text-pearl/70">{cat.name[locale]}</span>
-          </nav>
-          <h1 className="font-display text-4xl text-pearl sm:text-5xl">
-            {cat.name[locale]}
-          </h1>
-          {cat.tagline && (
-            <p className="mt-3 max-w-xl text-pearl/60">{cat.tagline[locale]}</p>
-          )}
+      <PageHeader
+        title={cat.name[locale]}
+        subtitle={cat.tagline?.[locale]}
+        crumbs={[
+          { href: `/${locale}/catalog`, label: dict.catalog.title },
+          { label: cat.name[locale] },
+        ]}
+      >
+        <CategoryFilter
+          categories={categories}
+          locale={locale}
+          active={category}
+          allLabel={dict.catalog.filterAll}
+        />
+      </PageHeader>
 
-          <nav className="mt-8 flex flex-wrap gap-2.5">
-            <Link
-              href={`/${locale}/catalog`}
-              className="rounded-full border border-mocha/50 px-5 py-2 text-xs uppercase tracking-wider text-pearl/75 transition hover:border-gold hover:text-champagne"
-            >
-              {dict.catalog.filterAll}
-            </Link>
-            {categories.map((c) => (
-              <Link
-                key={c.slug}
-                href={`/${locale}/catalog/${c.slug}`}
-                className={
-                  c.slug === category
-                    ? "rounded-full bg-gold px-5 py-2 text-xs font-semibold uppercase tracking-wider text-espresso"
-                    : "rounded-full border border-mocha/50 px-5 py-2 text-xs uppercase tracking-wider text-pearl/75 transition hover:border-gold hover:text-champagne"
-                }
-              >
-                {c.name[locale]}
-              </Link>
-            ))}
-          </nav>
-        </div>
-      </section>
-
-      <section className="mx-auto max-w-7xl px-5 py-14 lg:px-8 lg:py-20">
+      <section className="container-site py-12 lg:py-16">
         {products.length === 0 ? (
-          <p className="py-20 text-center text-pearl/50">{dict.catalog.empty}</p>
+          <div className="card mx-auto max-w-md px-6 py-14 text-center">
+            <p className="font-display text-2xl text-brown">{dict.catalog.empty}</p>
+            <Link href={`/${locale}/catalog`} className="btn btn-secondary mt-6">
+              {dict.catalog.filterAll}
+              <ArrowIcon />
+            </Link>
+          </div>
         ) : (
           <>
-            <p className="mb-8 text-sm text-pearl/50">
-              {products.length} {dict.catalog.products}
+            <p className="mb-8 text-sm text-muted">
+              <span className="font-semibold tabular-nums text-brown">{products.length}</span>{" "}
+              {dict.catalog.products}
             </p>
-            <div className="grid grid-cols-2 gap-5 lg:grid-cols-4 lg:gap-7">
+            <div className="grid grid-cols-2 gap-x-4 gap-y-9 sm:gap-x-5 lg:grid-cols-4 lg:gap-x-7 lg:gap-y-12">
               {products.map((product, i) => (
-                <Reveal key={product.slug} delay={(i % 4) * 70}>
+                <Reveal key={product.slug} delay={(i % 4) * 60}>
                   <ProductCard
                     product={product}
                     dict={dict}

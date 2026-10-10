@@ -3,6 +3,7 @@ import { isLocale } from "@/i18n/config";
 import { getDictionary } from "@/i18n/dictionaries";
 import { site } from "@/lib/site";
 import { OrderForm } from "@/components/OrderForm";
+import { PageHeader } from "@/components/PageHeader";
 
 export async function generateMetadata({
   params,
@@ -40,78 +41,78 @@ export default async function ContactPage({
     });
   }
 
+  const social =
+    "btn btn-secondary btn-sm normal-case tracking-normal text-[13px] font-medium";
+
   return (
-    <section className="mx-auto max-w-7xl px-5 pt-28 pb-20 lg:px-8 lg:pt-36 lg:pb-28">
-      <div className="max-w-2xl">
-        <p className="text-xs uppercase tracking-[0.3em] text-gold">
-          {dict.common.brand}
-        </p>
-        <h1 className="mt-3 font-display text-4xl text-pearl sm:text-5xl">
-          {dict.contact.title}
-        </h1>
-        <p className="mt-3 text-pearl/60">{dict.contact.subtitle}</p>
-      </div>
+    <>
+      <PageHeader
+        eyebrow={dict.common.brand}
+        title={dict.contact.title}
+        subtitle={dict.contact.subtitle}
+      />
 
-      <div className="mt-14 grid gap-12 lg:grid-cols-[1fr_1.2fr] lg:gap-20">
-        {/* Contact info */}
-        <div className="space-y-8">
-          <dl className="space-y-6">
-            {rows.map((row) => (
-              <div key={row.label} className="border-b border-mocha/25 pb-5">
-                <dt className="text-xs uppercase tracking-wider text-pearl/45">
-                  {row.label}
-                </dt>
-                <dd className="mt-1.5 text-lg text-pearl/90">
-                  {row.href ? (
-                    <a href={row.href} className="transition hover:text-champagne">
-                      {row.value}
-                    </a>
-                  ) : (
-                    row.value
-                  )}
-                </dd>
-              </div>
-            ))}
-          </dl>
+      <section className="container-site py-12 lg:py-20">
+        <div className="grid gap-10 lg:grid-cols-[0.9fr_1.1fr] lg:gap-16">
+          {/* Aloqa ma'lumotlari */}
+          <div className="space-y-6">
+            <dl className="card divide-y divide-line px-6">
+              {rows.map((row) => (
+                <div key={row.label} className="py-5">
+                  <dt className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted">
+                    {row.label}
+                  </dt>
+                  <dd className="mt-1.5 text-lg text-brown">
+                    {row.href ? (
+                      <a
+                        href={row.href}
+                        className="tabular-nums underline decoration-gold decoration-1 underline-offset-4 transition-colors hover:text-bronze"
+                      >
+                        {row.value}
+                      </a>
+                    ) : (
+                      row.value
+                    )}
+                  </dd>
+                </div>
+              ))}
+            </dl>
 
-          <div>
-            <p className="text-xs uppercase tracking-wider text-pearl/45">
-              {dict.contact.socialLabel}
-            </p>
-            <div className="mt-3 flex flex-wrap gap-3">
-              <a
-                href={site.instagram}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="rounded-full border border-mocha/50 px-5 py-2.5 text-sm text-pearl/80 transition hover:border-gold hover:text-champagne"
-              >
-                Instagram {site.instagramHandle}
-              </a>
-              {site.telegram && (
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted">
+                {dict.contact.socialLabel}
+              </p>
+              <div className="mt-3 flex flex-wrap gap-3">
                 <a
-                  href={site.telegram}
+                  href={site.instagram}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="rounded-full border border-mocha/50 px-5 py-2.5 text-sm text-pearl/80 transition hover:border-gold hover:text-champagne"
+                  className={social}
                 >
-                  Telegram
+                  Instagram {site.instagramHandle}
                 </a>
-              )}
+                {site.telegram && (
+                  <a
+                    href={site.telegram}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={social}
+                  >
+                    Telegram
+                  </a>
+                )}
+              </div>
             </div>
           </div>
-        </div>
 
-        {/* Order form */}
-        <div className="rounded-3xl border border-mocha/30 bg-dark-chocolate/50 p-6 sm:p-10">
-          <h2 className="font-display text-2xl text-champagne">
-            {dict.order.title}
-          </h2>
-          <p className="mt-1.5 mb-6 text-sm text-pearl/60">
-            {dict.contact.orderHere}
-          </p>
-          <OrderForm dict={dict} locale={locale} />
+          {/* Buyurtma formasi */}
+          <div className="card p-6 shadow-card sm:p-10">
+            <h2 className="font-display text-3xl leading-tight text-brown">{dict.order.title}</h2>
+            <p className="mt-1.5 mb-7 text-sm text-muted">{dict.contact.orderHere}</p>
+            <OrderForm dict={dict} locale={locale} />
+          </div>
         </div>
-      </div>
-    </section>
+      </section>
+    </>
   );
 }
