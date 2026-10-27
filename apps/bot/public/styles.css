@@ -225,6 +225,17 @@ body.has-fab-cart .home-scroll { padding-bottom: 112px; }
    ═══════════════════════════════════════════════════════════ */
 .cat-wrap { margin: 20px -20px 0; scroll-margin-top: 90px; }
 .cat-strip { display: flex; gap: 8px; overflow-x: auto; padding: 3px 20px; scrollbar-width: none; }
+
+/* Do'kon (filial) tanlagich */
+.shop-strip { display: flex; gap: 8px; overflow-x: auto; margin: 18px -20px 0; padding: 3px 20px; scrollbar-width: none; }
+.shop-strip::-webkit-scrollbar { display: none; }
+.shop-chip { display: inline-flex; align-items: center; gap: 7px; padding: 10px 16px; border-radius: var(--r-full); background: var(--card); border: 1px solid var(--line); font-weight: 600; font-size: 13px; letter-spacing: .02em; white-space: nowrap; color: var(--text-2); transition: background var(--t) var(--ease), color var(--t) var(--ease), border-color var(--t) var(--ease), transform var(--t-fast) var(--ease); }
+.shop-chip svg { width: 16px; height: 16px; }
+.shop-chip .lbl { max-width: 160px; overflow: hidden; text-overflow: ellipsis; }
+.shop-chip.active { background: var(--grad-gold); border-color: transparent; color: var(--on-gold); box-shadow: var(--sh-gold); font-weight: 700; }
+.shop-chip:active { transform: scale(.95); }
+
+.cat-strip { display: flex; gap: 8px; overflow-x: auto; padding: 3px 20px; scrollbar-width: none; }
 .cat-strip::-webkit-scrollbar { display: none; }
 .cat-chip { display: inline-flex; align-items: center; gap: 7px; padding: 10px 16px; border-radius: var(--r-full); background: var(--card); border: 1px solid var(--line); font-weight: 600; font-size: 14px; letter-spacing: .02em; white-space: nowrap; color: var(--text-2); transition: background var(--t) var(--ease), color var(--t) var(--ease), border-color var(--t) var(--ease), transform var(--t-fast) var(--ease); }
 .cat-chip .lbl { max-width: 160px; overflow: hidden; text-overflow: ellipsis; }

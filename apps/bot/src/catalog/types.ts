@@ -9,6 +9,13 @@
 export type Lang = "uz" | "ru" | "en";
 export type Localized = string | Partial<Record<Lang, string>>;
 
+export interface ShopStock {
+  shopId: string;
+  price: number;
+  oldPrice: number | null;
+  stock: number;
+}
+
 export interface Variant {
   /** BILLZ tovar ID'si (variatsiya yoki oddiy tovar) — buyurtma shu bilan saqlanadi. */
   id: string;
@@ -16,9 +23,13 @@ export interface Variant {
   label: string;
   sku: string;
   barcode: string;
+  /** Sukut narx (birinchi do'kondan yoki yig'ma). */
   price: number;
   oldPrice: number | null;
+  /** Barcha do'konlar qoldig'i yig'indisi. */
   stock: number;
+  /** Har do'konning alohida narxi va qoldig'i (do'kon tanlagich uchun). */
+  shopStocks: ShopStock[];
 }
 
 export interface Product {
@@ -49,4 +60,6 @@ export interface CatalogSnapshot {
   syncedAt: string;
   categories: Category[];
   products: Product[];
+  /** BILLZ do'konlari (filiallar) — Mini App'da do'kon tanlagich uchun. */
+  shops: { id: string; name: string }[];
 }
