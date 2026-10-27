@@ -8,6 +8,7 @@ import {
   getProductDetail,
   listCategories,
   listProducts,
+  listShops,
   resolveImageKey,
   type Sort,
 } from "./catalog/index.js";
@@ -27,6 +28,10 @@ import { bots } from "./telegram.js";
  *   GET  /media/:id             sayt admin panelida yuklangan rasmlar (bazadan)
  *   GET  /img/:key              BILLZ rasmlari — o'z serverimizdan (BILLZ CDN'ga to'g'ridan-to'g'ri ulanish taqiqlangan)
  */
+
+function shopOf(req: FastifyRequest): string | undefined {
+  return ((req.query as Record<string, string | undefined>).shop ?? "").trim() || undefined;
+}
 
 function langOf(req: FastifyRequest): Lang {
   return normLang((req.query as Record<string, string>).lang);
@@ -163,18 +168,20 @@ export async function registerApi(app: FastifyInstance) {
     }
   });
 
-  app.get("/api/categories", async (req) => listCategories(langOf(req)));
+  app.get("/api/shops", async () => listShops());
+
+  app.get("/api/categories", async (req) => listCategories(langOf(req), shopOf(req)));
 
   app.get("/api/products", async (req) => {
     const q = req.query as Record<string, string | undefined>;
     const ids = (q.ids ?? "").split(",").map((x) => x.trim()).filter(Boolean).slice(0, 200);
     const sort = (["popular", "new", "cheap", "expensive"].includes(q.sort ?? "") ? q.sort : "popular") as Sort;
-    return listProducts({ category: q.category || undefined, q: q.q?.slice(0, 100), sort, ids }, langOf(req));
+    return listProducts({ category: q.category || undefined, q: q.q?.slice(0, 100), sort, ids, shopId: shopOf(req) }, langOf(req));
   });
 
   app.get("/api/products/:id", async (req, reply) => {
     const { id } = req.params as { id: string };
-    const p = getProductDetail(id, langOf(req));
+    const p = getProductDetail(id, langOf(req), shopOf(req));
     if (!p) return reply.code(404).send({ detail: "Mahsulot topilmadi" });
     return p;
   });

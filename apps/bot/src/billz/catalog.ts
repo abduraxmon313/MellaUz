@@ -1,5 +1,5 @@
 import { config } from "../config.js";
-import type { CatalogSnapshot, Category, Product, Variant } from "../catalog/types.js";
+import type { CatalogSnapshot, Category, Product, ShopStock, Variant } from "../catalog/types.js";
 import { billz } from "./client.js";
 
 /**
@@ -99,6 +99,34 @@ function shopAllowed(shopId: string) {
   return config.billz.shopIds.length === 0 || config.billz.shopIds.includes(shopId);
 }
 
+function priceForShop(p: BillzProduct, shopId: string): { price: number; oldPrice: number | null } {
+  const sp = (p.shop_prices ?? []).find((x) => x.shop_id === shopId && n(x.retail_price) > 0);
+  if (!sp) return { price: 0, oldPrice: null };
+  const retail = Math.round(n(sp.retail_price));
+  const promo = Math.round(n(sp.promo_price));
+  if (Array.isArray(sp.promos) && sp.promos.length > 0 && promo > 0 && promo < retail) {
+    return { price: promo, oldPrice: retail };
+  }
+  return { price: retail, oldPrice: null };
+}
+
+function stockForShop(p: BillzProduct, shopId: string): number {
+  const s = (p.shop_measurement_values ?? []).find((x) => x.shop_id === shopId);
+  return s ? Math.max(0, n(s.active_measurement_value)) : 0;
+}
+
+function shopStocksOf(p: BillzProduct): ShopStock[] {
+  const allowed = config.billz.shopIds;
+  const shopIds = allowed.length ? allowed : [...new Set([
+    ...(p.shop_prices ?? []).map((x) => x.shop_id),
+    ...(p.shop_measurement_values ?? []).map((x) => x.shop_id),
+  ])];
+  return shopIds.map((shopId) => {
+    const pr = priceForShop(p, shopId);
+    return { shopId, price: pr.price, oldPrice: pr.oldPrice, stock: stockForShop(p, shopId) };
+  }).filter((s) => s.price > 0 || s.stock > 0);
+}
+
 function priceOf(p: BillzProduct): { price: number; oldPrice: number | null } {
   const prices = (p.shop_prices ?? []).filter((x) => n(x.retail_price) > 0);
   // Avval sozlangan do'kon tartibida qidiramiz, topilmasa — birinchisi.
@@ -195,6 +223,20 @@ async function ensureCurrentShop(): Promise<void> {
 export async function syncFromBillz(): Promise<CatalogSnapshot> {
   const startedAt = new Date().toISOString();
   await ensureCurrentShop();
+
+  // Do'konlar ro'yxatini olish (Mini App tanlagichi uchun).
+  let shops: { id: string; name: string }[] = [];
+  try {
+    const r = await billz<{ shops?: { id: string; name: string }[] }>("/v1/shop", { query: { limit: 100 } });
+    const all = (r.shops ?? []).map((s) => ({ id: s.id, name: s.name }));
+    // Faqat sozlangan do'konlar (BILLZ_SHOP_IDS) yoki barchasi.
+    shops = config.billz.shopIds.length
+      ? config.billz.shopIds.map((id) => all.find((s) => s.id === id) ?? { id, name: id }).filter(Boolean)
+      : all;
+  } catch (e) {
+    console.warn("[billz] do'konlar ro'yxati olinmadi:", (e as Error).message);
+  }
+
   const raw = await fetchAllProducts();
   let tree: BillzCategoryNode[] = [];
   try {
@@ -237,6 +279,7 @@ export async function syncFromBillz(): Promise<CatalogSnapshot> {
         price: pr.price,
         oldPrice: pr.oldPrice,
         stock: stockOf(c),
+        shopStocks: shopStocksOf(c),
       };
     });
     // Narxi yo'q (sotuvga chiqmagan) variantlarni yashiramiz.
@@ -290,5 +333,5 @@ export async function syncFromBillz(): Promise<CatalogSnapshot> {
     .map(([id, name]) => ({ id, name, order: orderIdx.get(id) ?? 999 }))
     .sort((a, b) => a.order - b.order || String(a.name).localeCompare(String(b.name)));
 
-  return { source: "billz", syncedAt: startedAt, categories, products };
+  return { source: "billz", syncedAt: startedAt, categories, products, shops };
 }
