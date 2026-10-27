@@ -171,8 +171,30 @@ function buildTopLevelMap(tree: BillzCategoryNode[]) {
   return { top, order };
 }
 
+/**
+ * BILLZ'da foydalanuvchining "joriy do'koni" o'rnatiladi.
+ * Ba'zi BILLZ muhitlarida `GET /v2/products` faqat joriy do'kon o'rnatilgandan keyin
+ * ishlaydi — aks holda `500 INTERNAL error while getting products` qaytadi.
+ * Bu so'rov har sinxronlashda bir marta chaqiriladi (idempotent).
+ */
+async function ensureCurrentShop(): Promise<void> {
+  const shopId = config.billz.shopIds[0];
+  if (!shopId) return; // do'kon aniqlanmagan — o'rnatmaymiz
+  try {
+    await billz(`/v1/user/set-current-shop/${shopId}`, {
+      method: "PATCH",
+      asyncHttp: true,
+    });
+  } catch (e) {
+    // 404 bo'lsa — eski BILLZ versiyasi, bu endpoint yo'q; davom etamiz.
+    // Boshqa xatolar ham sinxronni to'xtatmasligi kerak.
+    console.warn("[billz] set-current-shop xato (davom etamiz):", (e as Error).message);
+  }
+}
+
 export async function syncFromBillz(): Promise<CatalogSnapshot> {
   const startedAt = new Date().toISOString();
+  await ensureCurrentShop();
   const raw = await fetchAllProducts();
   let tree: BillzCategoryNode[] = [];
   try {
