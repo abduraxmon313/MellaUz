@@ -16,7 +16,6 @@ const FAV_KEY = 'mella_fav_v1';
 
 const State = {
   config: null, categories: [], products: [], cart: loadCart(), favorites: loadFavorites(),
-  shops: [], currentShop: localStorage.getItem('mella_shop') || '',
   currentCategory: null, search: '', sort: 'popular',
   lang: localStorage.getItem('mella_lang') || ((tg && tg.initDataUnsafe && tg.initDataUnsafe.user && tg.initDataUnsafe.user.language_code) || 'uz'),
   view: 'home',
@@ -88,8 +87,6 @@ const I18N = {
   hero_eyebrow: { uz: 'Yangi mavsum', ru: 'Новый сезон', en: 'New season' },
   hero_title: { uz: 'Tabiiy charm.<br>Nafis uslub.', ru: 'Натуральная кожа.<br>Изящный стиль.', en: 'Genuine leather.<br>Refined style.' },
   hero_cta: { uz: 'Ko‘rish', ru: 'Смотреть', en: 'Explore' },
-  all_shops: { uz: 'Barcha filiallar', ru: 'Все филиалы', en: 'All branches' },
-  choose_shop: { uz: 'Filial', ru: 'Филиал', en: 'Branch' },
   all: { uz: 'Hammasi', ru: 'Все', en: 'All' },
   add: { uz: 'Savatga', ru: 'В корзину', en: 'Add to bag' },
   choose: { uz: 'Tanlash', ru: 'Выбрать', en: 'Select' },
@@ -376,33 +373,6 @@ function renderHero() {
     </div>`;
   applyIcons(wrap);
   el('heroCta').onclick = () => { haptic('light'); el('catWrap').scrollIntoView({ behavior: 'smooth', block: 'start' }); };
-}
-
-/* ═══════════════════════════════════════════════════════════
-   DO'KON (FILIAL) TANLAGICH
-   ═══════════════════════════════════════════════════════════ */
-function shopQuery() { return State.currentShop ? '?shop=' + encodeURIComponent(State.currentShop) : ''; }
-
-function renderShopSelector() {
-  const wrap = el('shopSelector'); if (!wrap) return;
-  if (State.shops.length < 2) { wrap.hidden = true; return; }
-  wrap.hidden = false;
-  const all = { id: '', name: L('all_shops') };
-  const items = [all, ...State.shops];
-  wrap.innerHTML = items.map((s, i) => {
-    const active = State.currentShop === s.id;
-    return `<button class="shop-chip stagger-chip ${active ? 'active' : ''}" style="--i:${i}" data-shop="${escAttr(s.id)}"><span data-ic="${s.id ? 'store' : 'globe'}"></span><span class="lbl">${esc(s.name)}</span></button>`;
-  }).join('');
-  applyIcons(wrap);
-  wrap.querySelectorAll('.shop-chip').forEach((chip) => chip.onclick = () => {
-    const id = chip.dataset.shop;
-    if (State.currentShop === id) return;
-    State.currentShop = id;
-    localStorage.setItem('mella_shop', id);
-    haptic('light');
-    renderShopSelector();
-    reloadCatalog();
-  });
 }
 
 /* ═══════════════════════════════════════════════════════════
@@ -1027,7 +997,7 @@ function applyI18n(root) {
 }
 
 async function reloadCatalog() {
-  try { State.categories = await api('/categories' + shopQuery()); } catch (e) { /* eski ro'yxat qoladi */ }
+  try { State.categories = await api('/categories'); } catch (e) { /* eski ro'yxat qoladi */ }
   if (State.currentCategory && !State.categories.some((c) => c.id === State.currentCategory)) State.currentCategory = null;
   renderCategories();
   await loadProducts();
@@ -1040,7 +1010,6 @@ async function loadProducts() {
     if (State.currentCategory) params.set('category', State.currentCategory);
     if (State.search) params.set('q', State.search);
     params.set('sort', State.sort);
-    if (State.currentShop) params.set('shop', State.currentShop);
     State.products = await api('/products?' + params.toString());
     renderProducts();
   } catch (e) { el('products').innerHTML = ''; toast(e.message); }
@@ -1085,12 +1054,7 @@ async function init() {
   applyI18n();
   renderSortbar();
   el('products').innerHTML = skeletonCards(6);
-  // Do'konlar (filiallar) ro'yxatini yuklash.
-  try { State.shops = await api('/shops'); } catch (e) { State.shops = []; }
-  // Saqlangan do'kon hali ham mavjudligini tekshiramiz.
-  if (State.currentShop && !State.shops.some((s) => s.id === State.currentShop)) State.currentShop = '';
-  renderShopSelector();
-  try { State.categories = await api('/categories' + shopQuery()); } catch (e) { State.categories = []; }
+  try { State.categories = await api('/categories'); } catch (e) { State.categories = []; }
   renderCategories();
   await loadProducts();
   renderHero();

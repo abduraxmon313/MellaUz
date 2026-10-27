@@ -90,9 +90,8 @@ function manualToProduct(m: ManualRow): Product {
         price: m.price,
         oldPrice: m.oldPrice,
         stock: Math.max(0, s.stock),
-        shopStocks: [],
       }))
-    : [{ id: m.id, label: "", sku: m.sku, barcode: "", price: m.price, oldPrice: m.oldPrice, stock: Math.max(0, m.stock), shopStocks: [] }];
+    : [{ id: m.id, label: "", sku: m.sku, barcode: "", price: m.price, oldPrice: m.oldPrice, stock: Math.max(0, m.stock) }];
   return {
     id: m.id,
     name: m.name,
@@ -113,7 +112,6 @@ function rebuildSnapshot() {
   const hideBase = manual.hideSamples && baseSnapshot.source === "mock";
   const products = [...manual.products, ...(hideBase ? [] : baseSnapshot.products)];
   const categories = [...baseSnapshot.categories];
-  const shops = baseSnapshot.shops ?? [];
   // Qo'lda kiritilgan kategoriya asosiy katalogda bo'lmasa (masalan BILLZ) — nomini qo'shamiz.
   for (const p of manual.products) {
     for (const id of p.categoryIds) {
@@ -123,7 +121,7 @@ function rebuildSnapshot() {
     }
   }
   categories.sort((a, b) => a.order - b.order);
-  snapshot = { ...baseSnapshot, categories, products, shops };
+  snapshot = { ...baseSnapshot, categories, products };
   rebuildImageMap();
 }
 
@@ -196,50 +194,24 @@ export async function initCatalog() {
 
 // ── So'rovlar ─────────────────────────────────────────────────
 
-/** Mini App do'kon tanlagich uchun ro'yxat. */
-export function listShops() {
-  return snapshot.shops ?? [];
+export function totalStock(p: Product) {
+  return p.variants.reduce((s, v) => s + v.stock, 0);
 }
 
-/** Do'kon filtri: variant'ning shu do'kondagi narxi va qoldig'i. */
-function variantForShop(v: Variant, shopId?: string): { price: number; oldPrice: number | null; stock: number } {
-  if (!shopId || !v.shopStocks.length) return { price: v.price, oldPrice: v.oldPrice, stock: v.stock };
-  const s = v.shopStocks.find((x) => x.shopId === shopId);
-  return s ? { price: s.price, oldPrice: s.oldPrice, stock: s.stock } : { price: 0, oldPrice: null, stock: 0 };
+function minPriceVariant(p: Product): Variant {
+  const inStock = p.variants.filter((v) => v.stock > 0);
+  const pool = inStock.length ? inStock : p.variants;
+  return pool.reduce((a, b) => (b.price < a.price ? b : a));
 }
 
-export function totalStock(p: Product, shopId?: string) {
-  if (!shopId) return p.variants.reduce((s, v) => s + v.stock, 0);
-  return p.variants.reduce((s, v) => s + variantForShop(v, shopId).stock, 0);
+function visible(p: Product) {
+  return !config.billz.hideOutOfStock || totalStock(p) > 0;
 }
 
-function minPriceVariant(p: Product, shopId?: string): Variant & { _price: number; _oldPrice: number | null; _stock: number } {
-  const mapped = p.variants.map((v) => {
-    const s = variantForShop(v, shopId);
-    return { ...v, _price: s.price, _oldPrice: s.oldPrice, _stock: s.stock };
-  });
-  const inStock = mapped.filter((v) => v._stock > 0);
-  const pool = inStock.length ? inStock : mapped;
-  return pool.reduce((a, b) => (b._price > 0 && (a._price === 0 || b._price < a._price) ? b : a));
-}
-
-function visible(p: Product, shopId?: string) {
-  if (config.billz.hideOutOfStock && totalStock(p, shopId) <= 0) return false;
-  // Do'kon tanlanganda, narxi yoki qoldig'i bor variantlar bo'lishi kerak.
-  if (shopId) {
-    const hasAny = p.variants.some((v) => {
-      const s = variantForShop(v, shopId);
-      return s.price > 0 || s.stock > 0;
-    });
-    if (!hasAny) return false;
-  }
-  return true;
-}
-
-export function listCategories(lang: Lang, shopId?: string) {
+export function listCategories(lang: Lang) {
   const counts = new Map<string, number>();
   for (const p of snapshot.products) {
-    if (!visible(p, shopId)) continue;
+    if (!visible(p)) continue;
     for (const c of p.categoryIds) counts.set(c, (counts.get(c) ?? 0) + 1);
   }
   return snapshot.categories
@@ -249,9 +221,8 @@ export function listCategories(lang: Lang, shopId?: string) {
 
 export type Sort = "popular" | "new" | "cheap" | "expensive";
 
-export function listProducts(opts: { category?: string; q?: string; sort?: Sort; ids?: string[]; shopId?: string }, lang: Lang) {
-  const shopId = opts.shopId;
-  let list = snapshot.products.filter((p) => visible(p, shopId));
+export function listProducts(opts: { category?: string; q?: string; sort?: Sort; ids?: string[] }, lang: Lang) {
+  let list = snapshot.products.filter(visible);
   if (opts.ids?.length) {
     const set = new Set(opts.ids);
     list = list.filter((p) => set.has(p.id));
@@ -269,8 +240,8 @@ export function listProducts(opts: { category?: string; q?: string; sort?: Sort;
     );
   }
   if (!opts.ids?.length) {
-    const price = (p: Product) => minPriceVariant(p, shopId)._price;
-    const inStockFirst = (a: Product, b: Product) => Number(totalStock(b, shopId) > 0) - Number(totalStock(a, shopId) > 0);
+    const price = (p: Product) => minPriceVariant(p).price;
+    const inStockFirst = (a: Product, b: Product) => Number(totalStock(b) > 0) - Number(totalStock(a) > 0);
     switch (opts.sort) {
       case "new":
         list = [...list].sort((a, b) => inStockFirst(a, b) || b.updatedAt.localeCompare(a.updatedAt));
@@ -283,11 +254,11 @@ export function listProducts(opts: { category?: string; q?: string; sort?: Sort;
         break;
       default:
         list = [...list].sort(
-          (a, b) => inStockFirst(a, b) || Number(b.featured) - Number(a.featured) || totalStock(b, shopId) - totalStock(a, shopId),
+          (a, b) => inStockFirst(a, b) || Number(b.featured) - Number(a.featured) || totalStock(b) - totalStock(a),
         );
     }
   }
-  return list.map((p) => serializeCard(p, lang, shopId));
+  return list.map((p) => serializeCard(p, lang));
 }
 
 const catName = (id: string, lang: Lang) => {
@@ -295,45 +266,44 @@ const catName = (id: string, lang: Lang) => {
   return c ? loc(c.name, lang) : "";
 };
 
-export function serializeCard(p: Product, lang: Lang, shopId?: string) {
-  const v = minPriceVariant(p, shopId);
-  const stock = totalStock(p, shopId);
+export function serializeCard(p: Product, lang: Lang) {
+  const v = minPriceVariant(p);
+  const stock = totalStock(p);
   return {
     id: p.id,
     name: loc(p.name, lang),
     category: catName(p.categoryIds[0] ?? "", lang),
-    price: v._price,
-    old_price: v._oldPrice,
-    price_from: new Set(p.variants.map((x) => variantForShop(x, shopId).price).filter(Boolean)).size > 1,
+    price: v.price,
+    old_price: v.oldPrice,
+    // Variantlar narxi har xil bo'lsa — "dan" (from) yozuvi uchun.
+    price_from: new Set(p.variants.map((x) => x.price)).size > 1,
     image: publicImage(p.images[0]),
     in_stock: stock > 0,
     has_variants: p.variants.length > 1 || Boolean(p.variants[0]?.label),
+    // Kartadagi tezkor "Savatga" tugmasi uchun (bitta variantli tovar).
     single_variant_id: p.variants.length === 1 ? p.variants[0]!.id : null,
     stock,
   };
 }
 
-export function getProductDetail(id: string, lang: Lang, shopId?: string) {
+export function getProductDetail(id: string, lang: Lang) {
   const p = snapshot.products.find((x) => x.id === id);
   if (!p) return null;
   return {
-    ...serializeCard(p, lang, shopId),
+    ...serializeCard(p, lang),
     description: loc(p.description, lang),
     brand: p.brand,
     sku: p.sku,
     images: p.images.map((u) => publicImage(u)),
     attribute_name: p.attributeNames.join(" / "),
-    variants: p.variants.map((v) => {
-      const s = variantForShop(v, shopId);
-      return {
-        id: v.id,
-        label: v.label,
-        price: s.price,
-        old_price: s.oldPrice,
-        stock: s.stock,
-        in_stock: s.stock > 0,
-      };
-    }),
+    variants: p.variants.map((v) => ({
+      id: v.id,
+      label: v.label,
+      price: v.price,
+      old_price: v.oldPrice,
+      stock: v.stock,
+      in_stock: v.stock > 0,
+    })),
   };
 }
 

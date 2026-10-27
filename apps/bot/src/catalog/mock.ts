@@ -22,11 +22,10 @@ export function buildMockSnapshot(): CatalogSnapshot {
         price: p.price,
         oldPrice: p.oldPrice ?? null,
         stock: p.stock === 0 ? 0 : Math.max(0, Math.round(p.stock / SHOE_SIZES.length) + ((i + idx) % 3) - 1),
-        shopStocks: [],
       }));
     } else {
       variants = [
-        { id: p.sku, label: "", sku: p.sku, barcode: "", price: p.price, oldPrice: p.oldPrice ?? null, stock: p.stock, shopStocks: [] },
+        { id: p.sku, label: "", sku: p.sku, barcode: "", price: p.price, oldPrice: p.oldPrice ?? null, stock: p.stock },
       ];
     }
     const description: Record<string, string> = {};
@@ -55,6 +54,5 @@ export function buildMockSnapshot(): CatalogSnapshot {
     syncedAt: new Date().toISOString(),
     categories: mockCategories.map((c) => ({ id: c.slug, name: c.name, order: c.order })),
     products,
-    shops: [],
   };
 }
