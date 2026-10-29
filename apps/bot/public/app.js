@@ -18,7 +18,7 @@ const State = {
   config: null, categories: [], products: [], cart: loadCart(), favorites: loadFavorites(),
   currentCategory: null, search: '', sort: 'popular',
   shops: [], currentShop: localStorage.getItem('mella_shop') || '',
-  productsPage: 1, hasMore: false, _loadingMore: false,
+  productsPage: 1, hasMore: false, _loadingMore: false, total: 0,
   productsPage: 1, hasMore: false, _loadingMore: false,
   lang: localStorage.getItem('mella_lang') || ((tg && tg.initDataUnsafe && tg.initDataUnsafe.user && tg.initDataUnsafe.user.language_code) || 'uz'),
   view: 'home',
@@ -299,7 +299,8 @@ async function renderFavorites() {
   empty.hidden = true;
   wrap.innerHTML = skeletonCards(Math.min(4, State.favorites.length));
   try {
-    const items = await api('/products?ids=' + encodeURIComponent(State.favorites.join(',')));
+    const res = await api('/products?ids=' + encodeURIComponent(State.favorites.join(',')) + shopParam('&'));
+    const items = Array.isArray(res) ? res : (res.products || []);
     const alive = items.map((p) => p.id);
     if (alive.length !== State.favorites.length) { State.favorites = State.favorites.filter((id) => alive.includes(id)); saveFavorites(); }
     if (!items.length) { wrap.innerHTML = ''; empty.hidden = false; applyIcons(empty); return; }
@@ -344,7 +345,7 @@ async function refreshCart() {
   const pids = [...new Set(State.cart.map((x) => x.pid))];
   if (!pids.length) return false;
   let changed = false;
-  const results = await Promise.all(pids.map((pid) => api('/products/' + encodeURIComponent(pid)).catch(() => null)));
+  const results = await Promise.all(pids.map((pid) => api('/products/' + encodeURIComponent(pid) + shopParam('?')).catch(() => null)));
   const byPid = {}; pids.forEach((pid, i) => { byPid[pid] = results[i]; });
   const next = [];
   for (const it of State.cart) {
@@ -382,6 +383,8 @@ function renderHero() {
 /* ═══════════════════════════════════════════════════════════
    DO'KON (FILIAL) TANLAGICH
    ═══════════════════════════════════════════════════════════ */
+function shopParam(sep) { return State.currentShop ? sep + 'shop=' + encodeURIComponent(State.currentShop) : ''; }
+
 function renderShopSelector() {
   const wrap = el('shopSelector'); if (!wrap) return;
   if (State.shops.length < 2) { wrap.hidden = true; return; }
@@ -410,7 +413,7 @@ function renderShopSelector() {
 function renderCategories() {
   const wrap = el('categories');
   let html = `<button class="cat-chip stagger-chip ${State.currentCategory === null ? 'active' : ''}" style="--i:0" data-cat=""><span class="lbl">${L('all')}</span></button>`;
-  html += State.categories.map((c, i) => `<button class="cat-chip stagger-chip ${State.currentCategory === c.id ? 'active' : ''}" style="--i:${i + 1}" data-cat="${escAttr(c.id)}"><span class="lbl">${esc(c.name)}</span><span class="cnt">${c.count}</span></button>`).join('');
+  html += State.categories.map((c, i) => `<button class="cat-chip stagger-chip ${State.currentCategory === c.id ? 'active' : ''}" style="--i:${i + 1}" data-cat="${escAttr(c.id)}"><span class="lbl">${esc(c.name)}</span>${c.count ? `<span class="cnt">${c.count}</span>` : ''}</button>`).join('');
   wrap.innerHTML = html;
   wrap.querySelectorAll('.cat-chip').forEach((chip) => chip.onclick = () => {
     State.currentCategory = chip.dataset.cat || null;
@@ -436,7 +439,7 @@ function renderSortbar() {
 function skeletonCards(n) { return Array.from({ length: n }).map(() => '<div class="skeleton"><div class="sk-img"></div><div class="sk-line" style="width:45%"></div><div class="sk-line" style="width:80%"></div></div>').join(''); }
 function renderProducts() {
   const wrap = el('products'), empty = el('emptyProducts'), cnt = el('productsCount');
-  cnt.hidden = !State.products.length; cnt.textContent = L2('count_items', { n: State.products.length });
+  cnt.hidden = !State.products.length; cnt.textContent = L2('count_items', { n: State.total || State.products.length });
   if (!State.products.length) { wrap.innerHTML = ''; empty.hidden = false; applyIcons(empty); return; }
   empty.hidden = true;
   wrap.innerHTML = State.products.map((p, i) => productCard(p, i)).join('');
@@ -496,7 +499,7 @@ async function openProduct(id) {
   el('productContent').innerHTML = '<div class="od-loading"><div class="spinner"></div></div>';
   openSheet('sheetProduct');
   let p;
-  try { p = await api('/products/' + encodeURIComponent(id)); } catch (e) { closeSheets(); toast(e.message); return; }
+  try { p = await api('/products/' + encodeURIComponent(id) + shopParam('?')); } catch (e) { closeSheets(); toast(e.message); return; }
   const variants = p.variants || [];
   const hasChoice = variants.length > 1 || (variants[0] && variants[0].label);
   // Savatda bor variant yoki yagona variant oldindan tanlanadi.
@@ -1026,7 +1029,7 @@ function applyI18n(root) {
 }
 
 async function reloadCatalog() {
-  try { State.categories = await api('/categories'); } catch (e) { /* eski ro'yxat qoladi */ }
+  try { State.categories = await api('/categories' + shopParam('?')); } catch (e) { /* eski ro'yxat qoladi */ }
   if (State.currentCategory && !State.categories.some((c) => c.id === State.currentCategory)) State.currentCategory = null;
   renderCategories();
   await loadProducts();
@@ -1040,11 +1043,15 @@ async function loadProducts() {
     if (State.currentCategory) params.set('category', State.currentCategory);
     if (State.search) params.set('q', State.search);
     if (State.currentShop) params.set('shop', State.currentShop);
-    params.set('page', '1'); params.set('limit', '20');
+    params.set('sort', State.sort); params.set('page', '1'); params.set('limit', '20');
     const r = await api('/products?' + params.toString());
     State.products = r.products ?? r;
     State.hasMore = r.has_more ?? false;
+    State.total = typeof r.total === 'number' ? r.total : State.products.length;
     renderProducts();
+    // Server katalogni hali yuklayotgan bo'lsa (birinchi ishga tushish) — birozdan keyin yangilaymiz.
+    clearTimeout(loadProducts._t);
+    if (r.loading && State.productsPage === 1) loadProducts._t = setTimeout(() => { if (State.view === 'home' && State.productsPage === 1) loadProducts(); }, 8000);
   } catch (e) { el('products').innerHTML = ''; toast(e.message); }
 }
 
@@ -1056,7 +1063,7 @@ async function loadMoreProducts() {
     if (State.currentCategory) params.set('category', State.currentCategory);
     if (State.search) params.set('q', State.search);
     if (State.currentShop) params.set('shop', State.currentShop);
-    params.set('page', String(State.productsPage + 1)); params.set('limit', '20');
+    params.set('sort', State.sort); params.set('page', String(State.productsPage + 1)); params.set('limit', '20');
     const r = await api('/products?' + params.toString());
     const items = r.products ?? r;
     if (items.length) {
@@ -1118,7 +1125,7 @@ async function init() {
   // Barchasi bir vaqtda boshlanadi, birortasi yiqilsa qolganlari davom etadi.
   const configP = api('/config').catch(() => null);
   const shopsP = api('/shops').catch(() => []);
-  const catsP = api('/categories').catch(() => []);
+  const catsP = api('/categories' + shopParam('?')).catch(() => []);
 
   // Config birinchi kelsa — tilni yangilaymiz.
   configP.then((cfg) => {

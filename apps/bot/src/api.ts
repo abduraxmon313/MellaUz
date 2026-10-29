@@ -10,6 +10,7 @@ import {
   listProducts,
   listShops,
   resolveImageKey,
+  type Sort,
 } from "./catalog/index.js";
 import { createOrder, OrderError, serializeOrder, type OrderInput } from "./orders.js";
 import { bots } from "./telegram.js";
@@ -27,6 +28,11 @@ import { bots } from "./telegram.js";
  *   GET  /media/:id             sayt admin panelida yuklangan rasmlar (bazadan)
  *   GET  /img/:key              BILLZ rasmlari — o'z serverimizdan (BILLZ CDN'ga to'g'ridan-to'g'ri ulanish taqiqlangan)
  */
+
+function shopOf(req: FastifyRequest): string | undefined {
+  const v = String((req.query as Record<string, string | undefined>).shop ?? "").trim();
+  return /^[\w-]{1,64}$/.test(v) ? v : undefined;
+}
 
 function langOf(req: FastifyRequest): Lang {
   return normLang((req.query as Record<string, string>).lang);
@@ -165,26 +171,23 @@ export async function registerApi(app: FastifyInstance) {
 
   app.get("/api/shops", async () => listShops());
 
-  app.get("/api/categories", async (req) => listCategories(langOf(req)));
+  app.get("/api/categories", async (req) => listCategories(langOf(req), shopOf(req)));
 
   app.get("/api/products", async (req) => {
     const q = req.query as Record<string, string | undefined>;
     const page = Math.max(1, Number(q.page) || 1);
     const limit = Math.min(50, Math.max(1, Number(q.limit) || 20));
     const ids = (q.ids ?? "").split(",").map((x) => x.trim()).filter(Boolean).slice(0, 200);
-    return listProducts({
-      page, limit,
-      category: q.category || undefined,
-      q: q.q?.slice(0, 100),
-      shopId: (q.shop ?? "").trim() || undefined,
-      ids,
-    }, langOf(req));
+    const sort = (["popular", "new", "cheap", "expensive"].includes(q.sort ?? "") ? q.sort : "new") as Sort;
+    return listProducts(
+      { page, limit, category: q.category || undefined, q: q.q?.slice(0, 100), sort, shopId: shopOf(req), ids },
+      langOf(req),
+    );
   });
 
   app.get("/api/products/:id", async (req, reply) => {
     const { id } = req.params as { id: string };
-    const shop = ((req.query as Record<string, string | undefined>).shop ?? "").trim() || undefined;
-    const p = await getProductDetail(id, langOf(req), shop);
+    const p = getProductDetail(id, langOf(req), shopOf(req));
     if (!p) return reply.code(404).send({ detail: "Mahsulot topilmadi" });
     return p;
   });

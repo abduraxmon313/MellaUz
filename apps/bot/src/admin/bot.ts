@@ -71,26 +71,43 @@ async function todayReport(ctx: Context) {
   await ctx.reply(lines.join("\n"), { parse_mode: "HTML" });
 }
 
+let syncBusy = false;
+
 async function syncReport(ctx: Context) {
-  const before = catalogStatus();
-  if (before.source !== "billz" && !config.billz.secretToken) {
+  if (!config.billz.secretToken) {
     await ctx.reply("ℹ️ BILLZ_SECRET_TOKEN o‘rnatilmagan — Mini App namuna katalog bilan ishlayapti.");
     return;
   }
-  await ctx.reply("🔄 BILLZ katalogi yangilanmoqda…");
-  await syncNow();
-  const s = catalogStatus();
-  await ctx.reply(
-    [
-      s.lastError ? "⚠️ <b>Xato bilan yakunlandi</b>" : "✅ <b>Katalog yangilandi</b>",
-      `Manba: ${s.source}`,
-      `Mahsulotlar: ${s.products}`,
-      `Kategoriyalar: ${s.categories}`,
-      `Oxirgi sinxron: ${tashkentDate(s.syncedAt)}`,
-      s.lastError ? `\nXato: <code>${esc(s.lastError.slice(0, 500))}</code>` : "",
-    ].join("\n"),
-    { parse_mode: "HTML" },
-  );
+  const chatId = ctx.chat!.id;
+  if (syncBusy) {
+    const st = catalogStatus();
+    await ctx.reply(`⏳ Sinxronlash davom etmoqda${st.loading ? ` (${st.loading})` : ""}. Tugagach xabar beraman.`);
+    return;
+  }
+  syncBusy = true;
+  await ctx.reply("🔄 BILLZ katalogi yuklanmoqda. 23 000+ tovar uchun bir necha daqiqa ketadi — tugagach xabar beraman.");
+  // Webhook javobini kutib turmaymiz: uzoq jarayon Telegram'ni xabarni qayta yuborishga majbur qiladi.
+  void syncNow()
+    .then(async () => {
+      const s = catalogStatus();
+      await ctx.api.sendMessage(
+        chatId,
+        [
+          s.lastError ? "⚠️ <b>Xato bilan yakunlandi</b>" : "✅ <b>Katalog yangilandi</b>",
+          `Manba: ${s.source}`,
+          `Mahsulot kartalari: ${s.products}`,
+          `Kategoriyalar: ${s.categories}`,
+          `Filiallar: ${s.shops}`,
+          `Oxirgi sinxron: ${tashkentDate(s.syncedAt)}`,
+          s.lastError ? `\nXato: <code>${esc(s.lastError.slice(0, 500))}</code>` : "",
+        ].join("\n"),
+        { parse_mode: "HTML" },
+      );
+    })
+    .catch((e) => console.error("[admin-bot] sync hisobot:", e))
+    .finally(() => {
+      syncBusy = false;
+    });
 }
 
 /** Holat o'zgartirish tugmalari (admin bot ham, zaxira rejimida mijoz boti ham ishlatadi). */

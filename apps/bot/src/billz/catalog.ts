@@ -1,34 +1,48 @@
 import { config } from "../config.js";
-import type { Category } from "../catalog/types.js";
+import type { Category, Product, ShopStock, Variant } from "../catalog/types.js";
 import { billz } from "./client.js";
 
 /**
- * BILLZ katalogi — YANGI yondashuv:
+ * BILLZ katalogi — yuklash va indeks qurish.
  *
- * Eski holat: 23 000+ mahsulotni birdaniga yuklab, xotirada saqlash → BILLZ 500/timeout.
+ * BILLZ hujjati (docs.billz.io → "Синхронизация каталога") tavsiyasi bo'yicha:
+ *  • To'liq yuklash: GET /v2/products sahifalab (limit=100; 300 da BILLZ 500 qaytargan).
+ *  • Keyin faqat o'zgarganlar: GET /v2/products?last_updated_date=… (UTC).
+ *  • Variatsiyalar tekis ro'yxatda keladi — ota tovar (parent_id) bo'yicha guruhlanadi.
+ *    Bu faqat BUTUN ro'yxat bo'yicha to'g'ri ishlaydi: bitta sahifa ichida guruhlansa,
+ *    o'lchamlar boshqa sahifalarga tushib, bitta mahsulot qayta-qayta chiqadi.
  *
- * Yangi holat:
- *  • Kategoriyalar bir marta yuklanadi (ular kam) va xotirada saqlanadi.
- *  • Mahsulotlar BILLZ'dan to'g'ridan-to'g'ri sahifalab olinadi (foydalanuvchi
- *    scroll qilsa — keyingi sahifa). Xotirada saqlanmaydi.
- *  • Do'konlar ro'yxati bir marta yuklanadi.
+ * Ma'lumot DB'ga yozilmaydi — faqat server xotirasida (indeks) turadi.
  */
+
+const SERVICE_TYPE_ID = "5a0e556a-15f8-47ac-ae07-46972f3c6ab4";
+/** BILLZ limit=300 da 500 qaytargan; 100 barqaror ishlaydi. Testda kichraytirish mumkin. */
+const PAGE_LIMIT = Math.min(300, Math.max(1, Number(process.env.BILLZ_PAGE_LIMIT) || 100));
+const PAGE_RETRIES = 3;
 
 // ── Tiplar ──────────────────────────────────────────────────
 
-interface BillzCategoryRef { id: string; name: string; parent_id?: string }
-
-interface BillzCategoryNode {
-  id: string; name: string; parent_id?: string;
-  subRows?: BillzCategoryNode[] | null;
-  product_count?: number;
-}
-
-export interface BillzShop { id: string; name: string }
-
-export interface BillzProductRaw {
+interface BillzCategoryRef {
   id: string;
   name: string;
+  parent_id?: string;
+}
+
+interface BillzCategoryNode {
+  id: string;
+  name: string;
+  parent_id?: string;
+  subRows?: BillzCategoryNode[] | null;
+}
+
+export interface BillzShop {
+  id: string;
+  name: string;
+}
+
+interface BillzProductRaw {
+  id: string;
+  name?: string;
   base_name?: string;
   sku?: string;
   barcode?: string;
@@ -42,70 +56,165 @@ export interface BillzProductRaw {
   product_attributes?: { attribute_name?: string; attribute_value?: string }[] | null;
   product_type_id?: string;
   shop_measurement_values?: { shop_id: string; active_measurement_value: number | string }[] | null;
-  shop_prices?: {
-    shop_id: string; retail_price: number; retail_currency?: string;
-    promo_price?: number; promos?: unknown[] | null;
-  }[] | null;
+  shop_prices?:
+    | { shop_id: string; retail_price: number; promo_price?: number; promos?: unknown[] | null }[]
+    | null;
   updated_at?: string;
 }
 
-// ── Yordamchi funksiyalar ───────────────────────────────────
-
-const n = (v: unknown) => { const x = Number(v); return Number.isFinite(x) ? x : 0; };
-
-function shopAllowed(shopId: string) {
-  return config.billz.shopIds.length === 0 || config.billz.shopIds.includes(shopId);
+/** Xotirada saqlanadigan ixcham ko'rinish (keraksiz maydonlarsiz — 23k+ tovar uchun). */
+export interface SlimProduct {
+  id: string;
+  name: string;
+  baseName: string;
+  sku: string;
+  barcode: string;
+  brand: string;
+  description: string;
+  isVariative: boolean;
+  parentId: string;
+  images: string[];
+  categoryIds: string[];
+  categoryNames: string[];
+  attrs: { name: string; value: string }[];
+  isService: boolean;
+  /** shopId → [narx, aksiya narxi (0 — yo'q)] */
+  prices: Record<string, [number, number]>;
+  /** shopId → faol qoldiq */
+  stocks: Record<string, number>;
+  updatedAt: string;
 }
 
-export function priceOf(p: BillzProductRaw, shopId?: string): { price: number; oldPrice: number | null } {
-  const prices = (p.shop_prices ?? []).filter((x) => n(x.retail_price) > 0);
-  let sp: (typeof prices)[number] | undefined;
-  if (shopId) {
-    sp = prices.find((x) => x.shop_id === shopId);
-  } else {
-    for (const id of config.billz.shopIds) { sp = prices.find((x) => x.shop_id === id); if (sp) break; }
-    sp ??= prices[0];
-  }
-  if (!sp) return { price: 0, oldPrice: null };
-  const retail = Math.round(n(sp.retail_price));
-  const promo = Math.round(n(sp.promo_price));
-  if (Array.isArray(sp.promos) && sp.promos.length > 0 && promo > 0 && promo < retail) {
-    return { price: promo, oldPrice: retail };
-  }
-  return { price: retail, oldPrice: null };
-}
+const n = (v: unknown) => {
+  const x = Number(v);
+  return Number.isFinite(x) ? x : 0;
+};
 
-export function stockOf(p: BillzProductRaw, shopId?: string): number {
-  if (shopId) {
-    const s = (p.shop_measurement_values ?? []).find((x) => x.shop_id === shopId);
-    return s ? Math.max(0, n(s.active_measurement_value)) : 0;
-  }
-  return (p.shop_measurement_values ?? [])
-    .filter((s) => shopAllowed(s.shop_id))
-    .reduce((sum, s) => sum + Math.max(0, n(s.active_measurement_value)), 0);
-}
-
-export function photosOf(p: BillzProductRaw): string[] {
-  const list = [...(p.photos ?? [])]
+function slim(p: BillzProductRaw): SlimProduct {
+  const photos = [...(p.photos ?? [])]
     .filter((x) => x && x.photo_url)
     .sort((a, b) => Number(Boolean(b.is_main)) - Number(Boolean(a.is_main)) || n(a.sequence) - n(b.sequence))
     .map((x) => x.photo_url);
-  if (p.main_image_url && !list.includes(p.main_image_url)) list.unshift(p.main_image_url);
-  return list;
+  if (p.main_image_url && !photos.includes(p.main_image_url)) photos.unshift(p.main_image_url);
+
+  const prices: Record<string, [number, number]> = {};
+  for (const sp of p.shop_prices ?? []) {
+    const retail = Math.round(n(sp.retail_price));
+    if (retail <= 0) continue;
+    const promo = Math.round(n(sp.promo_price));
+    // promo_price faqat promos to'ldirilgan bo'lsa haqiqiy (BILLZ hujjati).
+    const hasPromo = Array.isArray(sp.promos) && sp.promos.length > 0 && promo > 0 && promo < retail;
+    prices[sp.shop_id] = [retail, hasPromo ? promo : 0];
+  }
+  const stocks: Record<string, number> = {};
+  for (const s of p.shop_measurement_values ?? []) stocks[s.shop_id] = Math.max(0, n(s.active_measurement_value));
+
+  return {
+    id: p.id,
+    name: String(p.name ?? "").trim(),
+    baseName: String(p.base_name ?? "").trim(),
+    sku: String(p.sku ?? ""),
+    barcode: String(p.barcode ?? ""),
+    brand: String(p.brand_name ?? ""),
+    description: String(p.description ?? "").trim(),
+    isVariative: Boolean(p.is_variative),
+    parentId: String(p.parent_id ?? ""),
+    images: photos.slice(0, 10),
+    categoryIds: (p.categories ?? []).map((c) => c.id),
+    categoryNames: (p.categories ?? []).map((c) => c.name),
+    attrs: (p.product_attributes ?? [])
+      .map((a) => ({ name: String(a.attribute_name ?? "").trim(), value: String(a.attribute_value ?? "").trim() }))
+      .filter((a) => a.value),
+    isService: p.product_type_id === SERVICE_TYPE_ID,
+    prices,
+    stocks,
+    updatedAt: String(p.updated_at ?? ""),
+  };
 }
 
-export function variantLabel(p: BillzProductRaw, baseName: string): string {
-  const attrs = (p.product_attributes ?? []).map((a) => String(a.attribute_value ?? "").trim()).filter(Boolean);
-  if (attrs.length) return attrs.join(" / ");
-  if (baseName && p.name.startsWith(baseName)) return p.name.slice(baseName.length).replace(/^[\s/|-]+/, "").trim();
-  return "";
+// ── So'rovlar ───────────────────────────────────────────────
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+async function fetchPage(page: number, lastUpdated?: string) {
+  let lastErr: unknown;
+  for (let attempt = 0; attempt < PAGE_RETRIES; attempt++) {
+    try {
+      const r = await billz<{ count?: number; products?: BillzProductRaw[] | null }>("/v2/products", {
+        query: { limit: PAGE_LIMIT, page, last_updated_date: lastUpdated },
+        timeoutMs: 60_000,
+      });
+      return { items: (r.products ?? []).filter((p) => p && p.id), count: Number(r.count ?? 0) };
+    } catch (e) {
+      // BILLZ ba'zan vaqtincha 500 qaytaradi — shu sahifani qayta so'raymiz.
+      lastErr = e;
+      await sleep(1500 * (attempt + 1));
+    }
+  }
+  throw lastErr;
 }
 
-// ── Kategoriya daraxti ──────────────────────────────────────
+/**
+ * Barcha mahsulotlarni sahifalab yuklaydi. `onProgress` har 20 sahifada chaqiriladi —
+ * birinchi ishga tushishda Mini App to'liq yuklanishni kutmasdan mahsulot ko'rsata oladi.
+ * Natija faqat barcha sahifalar muvaffaqiyatli yuklansa qaytadi.
+ */
+export async function fetchAllProducts(
+  onProgress?: (items: SlimProduct[], loaded: number, total: number) => void,
+): Promise<SlimProduct[]> {
+  const all: SlimProduct[] = [];
+  let total = 0;
+  for (let page = 1; page <= 3000; page++) {
+    const r = await fetchPage(page);
+    total = r.count || total;
+    for (const p of r.items) all.push(slim(p));
+    if (onProgress && page % 20 === 0) onProgress(all, all.length, total);
+    if (r.items.length < PAGE_LIMIT || (total > 0 && all.length >= total)) break;
+  }
+  if (total > 0 && all.length < total) {
+    throw new Error(`BILLZ katalogi to'liq yuklanmadi: ${all.length}/${total}`);
+  }
+  return all;
+}
 
-function buildTopLevelMap(tree: BillzCategoryNode[]) {
+/** `since` dan keyin o'zgargan mahsulotlar (UTC). BILLZ formati: "2026-10-29 12:00:00". */
+export async function fetchUpdatedSince(since: Date): Promise<SlimProduct[]> {
+  const stamp = since.toISOString().replace("T", " ").slice(0, 19);
+  const out: SlimProduct[] = [];
+  for (let page = 1; page <= 500; page++) {
+    const r = await fetchPage(page, stamp);
+    for (const p of r.items) out.push(slim(p));
+    if (r.items.length < PAGE_LIMIT) break;
+  }
+  return out;
+}
+
+export async function fetchCategoryTree(): Promise<BillzCategoryNode[]> {
+  const out: BillzCategoryNode[] = [];
+  for (let page = 1; page <= 20; page++) {
+    const r = await billz<{ categories?: BillzCategoryNode[] | null }>("/v2/category", {
+      query: { limit: 200, page },
+    });
+    const items = r.categories ?? [];
+    out.push(...items);
+    if (items.length < 200) break;
+  }
+  return out;
+}
+
+export async function fetchShops(): Promise<BillzShop[]> {
+  const r = await billz<{ shops?: BillzShop[] }>("/v1/shop", { query: { limit: 100 } });
+  const all = (r.shops ?? []).map((s) => ({ id: s.id, name: s.name }));
+  if (!config.billz.shopIds.length) return all;
+  return config.billz.shopIds.map((id) => all.find((s) => s.id === id) ?? { id, name: id });
+}
+
+// ── Indeks qurish ───────────────────────────────────────────
+
+/** Har bir kategoriya ID → eng yuqori ota kategoriya (Mini App chiplari uchun). */
+function topLevelMap(tree: BillzCategoryNode[]) {
   const top = new Map<string, { id: string; name: string }>();
-  const order: { id: string; name: string }[] = [];
+  const order = new Map<string, number>();
   const walk = (node: BillzCategoryNode, root: { id: string; name: string }) => {
     top.set(node.id, root);
     for (const c of node.subRows ?? []) walk(c, root);
@@ -113,9 +222,10 @@ function buildTopLevelMap(tree: BillzCategoryNode[]) {
   for (const root of tree) {
     if (root.parent_id) continue;
     const r = { id: root.id, name: root.name };
-    order.push(r);
+    order.set(r.id, order.size);
     walk(root, r);
   }
+  // Tekis ro'yxat holati: parent_id zanjiri bo'yicha ildizgacha ko'tariladi.
   const byId = new Map(tree.map((c) => [c.id, c]));
   for (const c of tree) {
     if (top.has(c.id)) continue;
@@ -130,128 +240,167 @@ function buildTopLevelMap(tree: BillzCategoryNode[]) {
   return { top, order };
 }
 
-// ── Ommaviy funksiyalar ─────────────────────────────────────
+const norm = (s: string) => s.toLowerCase().replace(/[\s'`‘’"]+/g, " ").trim();
 
-/** Kategoriyalar ro'yxatini BILLZ'dan yuklaydi.
- *  Qaytaradi:
- *    topLevel — Mini App chiplari uchun (faqat yuqori darajali)
- *    allById  — har qanday kategoriya ID → nomi (pastki kategoriyalar uchun ham)
- */
-export async function fetchCategories(): Promise<{ topLevel: Category[]; allById: Map<string, string> }> {
-  const tree: BillzCategoryNode[] = [];
-  for (let page = 1; page <= 20; page++) {
-    const r = await billz<{ count?: number; categories?: BillzCategoryNode[] | null }>("/v2/category", {
-      query: { limit: 200, page },
-    });
-    const items = r.categories ?? [];
-    tree.push(...items);
-    if (items.length < 200) break;
+function allowedShop(id: string) {
+  return config.billz.shopIds.length === 0 || config.billz.shopIds.includes(id);
+}
+
+function shopStocksOf(p: SlimProduct, shopIds: string[]): ShopStock[] {
+  return shopIds
+    .map((shopId) => {
+      const pr = p.prices[shopId];
+      return {
+        shopId,
+        price: pr ? (pr[1] || pr[0]) : 0,
+        oldPrice: pr && pr[1] ? pr[0] : null,
+        stock: p.stocks[shopId] ?? 0,
+      };
+    })
+    .filter((s) => s.price > 0 || s.stock > 0);
+}
+
+/** Sukut narx: sozlangan filiallar tartibida birinchi narx, aks holda istalgan. */
+function defaultPrice(p: SlimProduct): { price: number; oldPrice: number | null } {
+  const ids = config.billz.shopIds.length ? config.billz.shopIds : Object.keys(p.prices);
+  for (const id of ids) {
+    const pr = p.prices[id];
+    if (pr) return { price: pr[1] || pr[0], oldPrice: pr[1] ? pr[0] : null };
   }
-  const { top, order } = buildTopLevelMap(tree);
-  const orderIdx = new Map(order.map((c, i) => [c.id, i]));
+  const any = Object.values(p.prices)[0];
+  return any ? { price: any[1] || any[0], oldPrice: any[1] ? any[0] : null } : { price: 0, oldPrice: null };
+}
 
-  // Barcha kategoriyalar xaritasi: ID → nom (pastki kategoriyalar uchun ham).
-  const allById = new Map<string, string>();
-  const walkAll = (nodes: BillzCategoryNode[]) => {
-    for (const n of nodes) {
-      allById.set(n.id, n.name);
-      if (n.subRows) walkAll(n.subRows);
+function totalAllowedStock(p: SlimProduct) {
+  return Object.entries(p.stocks).reduce((s, [id, v]) => (allowedShop(id) ? s + v : s), 0);
+}
+
+function labelOf(c: SlimProduct, baseName: string): string {
+  if (c.attrs.length) return c.attrs.map((a) => a.value).join(" / ");
+  if (baseName && c.name.length > baseName.length && c.name.startsWith(baseName)) {
+    const rest = c.name.slice(baseName.length).replace(/^[\s/|,-]+/, "").trim();
+    if (rest) return rest;
+  }
+  return "";
+}
+
+export interface BillzIndex {
+  products: Product[];
+  categories: Category[];
+}
+
+export function buildIndex(items: SlimProduct[], tree: BillzCategoryNode[], shops: BillzShop[]): BillzIndex {
+  const { top, order } = topLevelMap(tree);
+  const shopIds = shops.length ? shops.map((s) => s.id) : config.billz.shopIds;
+  const byId = new Map(items.map((p) => [p.id, p]));
+
+  // 1) parent_id bo'yicha guruhlash (butun ro'yxat bo'yicha).
+  const groups = new Map<string, SlimProduct[]>();
+  for (const p of items) {
+    if (p.isService) continue;
+    if (p.isVariative && !p.parentId) continue; // ota tovarning o'zi sotilmaydi
+    const key = p.parentId || p.id;
+    const g = groups.get(key);
+    if (g) g.push(p);
+    else groups.set(key, [p]);
+  }
+
+  // 2) Variatsiyasiz, lekin nomi va kategoriyasi bir xil tovarlar — bitta karta
+  //    (ba'zi do'konlar har o'lchamni alohida tovar qilib kiritadi).
+  const byName = new Map<string, string>();
+  for (const [key, members] of [...groups]) {
+    const first = members[0]!;
+    if (first.parentId || members.length > 1) continue;
+    const nameKey = `${norm(first.name)}|${first.categoryIds[0] ?? ""}`;
+    if (!first.name) continue;
+    const target = byName.get(nameKey);
+    if (target && target !== key) {
+      groups.get(target)!.push(...members);
+      groups.delete(key);
+    } else {
+      byName.set(nameKey, key);
     }
-  };
-  walkAll(tree);
-  // Tekis ro'yxatdagi kategoriyalar ham.
-  for (const c of tree) allById.set(c.id, c.name);
-
-  // Faqat noyob yuqori darajali — Mini App chiplari uchun.
-  const seen = new Map<string, string>();
-  for (const [, root] of top) { seen.set(root.id, root.name); }
-  const topLevel = [...seen.entries()]
-    .map(([id, name]) => ({ id, name, order: orderIdx.get(id) ?? 999 }))
-    .sort((a, b) => a.order - b.order);
-
-  return { topLevel, allById };
-}
-
-/** Do'konlar ro'yxatini yuklaydi. */
-export async function fetchShops(): Promise<BillzShop[]> {
-  try {
-    const r = await billz<{ shops?: BillzShop[] }>("/v1/shop", { query: { limit: 100 } });
-    const all = (r.shops ?? []).map((s) => ({ id: s.id, name: s.name }));
-    return config.billz.shopIds.length
-      ? config.billz.shopIds.map((id) => all.find((s) => s.id === id) ?? { id, name: id })
-      : all;
-  } catch (e) {
-    console.warn("[billz] do'konlar olinmadi:", (e as Error).message);
-    return [];
   }
-}
 
-/** Set-current-shop (ba'zi BILLZ muhitlarida kerak). */
-export async function ensureCurrentShop(): Promise<void> {
-  const shopId = config.billz.shopIds[0];
-  if (!shopId) return;
-  try {
-    await billz(`/v1/user/set-current-shop/${shopId}`, { method: "PATCH", asyncHttp: true });
-  } catch (e) {
-    console.warn("[billz] set-current-shop xato (davom etamiz):", (e as Error).message);
-  }
-}
+  const products: Product[] = [];
+  const catCounts = new Map<string, { name: string; count: number }>();
 
-/**
- * Mahsulotlarni BILLZ'dan sahifalab oladi — BITTA sahifa.
- * Mini App scroll qilganda keyingi sahifa so'raladi.
- */
-export async function fetchProductsPage(opts: {
-  page: number;
-  limit?: number;
-  categoryId?: string;
-  search?: string;
-}): Promise<{ products: BillzProductRaw[]; total: number }> {
-  const limit = opts.limit ?? 20;
-  // BILLZ `GET /v2/products` da category/search filtri yo'q — `POST /v2/product-search-with-filters` ishlatamiz.
-  // Lekin u boshqa formatda javob beradi. Shuning uchun hozircha oddiy GET bilan sahifalab olamiz.
-  const r = await billz<{ count?: number; products?: BillzProductRaw[] | null }>("/v2/products", {
-    query: { limit, page: opts.page, search: opts.search || undefined },
-    timeoutMs: 30_000,
-  });
-  return { products: r.products ?? [], total: Number(r.count ?? 0) };
-}
+  for (const [key, members] of groups) {
+    const parent = byId.get(key);
+    const first = members[0]!;
+    const baseName =
+      (parent && parent.id !== first.id ? parent.name : "") ||
+      first.baseName ||
+      (first.parentId ? first.name.split(" / ")[0]!.trim() : first.name);
 
-/** Bitta mahsulotni BILLZ'dan oladi (ID bo'yicha). Aslida bu sahifalab topish — BILLZ'da bitta mahsulotni olish endpoint yo'q. */
-export async function fetchProductById(productId: string): Promise<BillzProductRaw | null> {
-  // BILLZ'da ID bo'yicha bitta mahsulot olish uchun maxsus endpoint yo'q.
-  // search parametri bilan qidiramiz.
-  try {
-    const r = await billz<{ products?: BillzProductRaw[] | null }>("/v2/products", {
-      query: { limit: 10, page: 1, search: productId },
-      timeoutMs: 15_000,
-    });
-    return (r.products ?? []).find((p) => p.id === productId) ?? null;
-  } catch {
-    return null;
-  }
-}
+    const multi = members.length > 1 || Boolean(first.parentId);
+    const variants: Variant[] = members
+      .map((c, i) => {
+        const pr = defaultPrice(c);
+        let label = multi ? labelOf(c, baseName) : "";
+        if (multi && !label) label = c.sku || c.barcode || `#${i + 1}`;
+        return {
+          id: c.id,
+          label,
+          sku: c.sku,
+          barcode: c.barcode,
+          price: pr.price,
+          oldPrice: pr.oldPrice,
+          stock: totalAllowedStock(c),
+          shopStocks: shopStocksOf(c, shopIds),
+        };
+      })
+      .filter((v) => v.price > 0);
+    if (!variants.length) continue;
+    variants.sort((a, b) => a.label.localeCompare(b.label, undefined, { numeric: true }));
 
-/** Kategoriya daraxti → har bir BILLZ kategoriya ID uchun yuqori darajali kategoriya. */
-export function getCategoryResolver(categories: Category[]) {
-  // Sodda: hozircha kategoriyalar o'zi yuqori darajali.
-  const map = new Map(categories.map((c) => [c.id, c]));
-  return (refs: BillzCategoryRef[]): string[] => {
-    const ids: string[] = [];
-    for (const r of refs) {
-      const c = map.get(r.id);
-      if (c && !ids.includes(c.id)) ids.push(c.id);
-      // Agar kategoriya topilmasa, parent_id orqali qidiramiz.
-      if (!c) {
-        // Categoriya nomi bilan solishtiramiz.
-        for (const cat of categories) {
-          if (String(cat.name).toLowerCase() === r.name.toLowerCase() && !ids.includes(cat.id)) {
-            ids.push(cat.id);
-            break;
-          }
-        }
-      }
+    const src = parent ?? first;
+    const catRefs = (src.categoryIds.length ? src : first).categoryIds.map((id, i) => ({
+      id,
+      name: (src.categoryIds.length ? src : first).categoryNames[i] ?? "",
+    }));
+    const catIds: string[] = [];
+    for (const c of catRefs) {
+      const t = top.get(c.id) ?? { id: c.id, name: c.name };
+      if (!t.name || catIds.includes(t.id)) continue;
+      catIds.push(t.id);
+      const cc = catCounts.get(t.id);
+      if (cc) cc.count++;
+      else catCounts.set(t.id, { name: t.name, count: 1 });
     }
-    return ids;
-  };
+
+    const images: string[] = [];
+    for (const s of [parent, ...members]) {
+      if (!s) continue;
+      for (const u of s.images) if (!images.includes(u)) images.push(u);
+    }
+
+    const attributeNames = [...new Set(members.flatMap((c) => c.attrs.map((a) => a.name)))].filter(Boolean);
+    const updatedAt = [parent, ...members]
+      .map((x) => x?.updatedAt ?? "")
+      .filter(Boolean)
+      .sort()
+      .pop();
+
+    products.push({
+      id: key,
+      name: baseName,
+      description: (parent?.description || first.description || "").trim(),
+      brand: parent?.brand || first.brand || "",
+      sku: parent?.sku || first.sku || "",
+      categoryIds: catIds,
+      images: images.slice(0, 10),
+      variants,
+      attributeNames,
+      featured: false,
+      updatedAt: updatedAt ? new Date(updatedAt.replace(" ", "T") + "Z").toISOString() : new Date(0).toISOString(),
+    });
+  }
+
+  // Faqat mahsuloti bor kategoriyalar (BILLZ'dagi bo'sh/eskirgan kategoriyalar ko'rsatilmaydi).
+  const categories: Category[] = [...catCounts.entries()]
+    .map(([id, c]) => ({ id, name: c.name, order: order.get(id) ?? 999 }))
+    .sort((a, b) => (catCounts.get(b.id)!.count - catCounts.get(a.id)!.count) || a.order - b.order);
+
+  return { products, categories };
 }

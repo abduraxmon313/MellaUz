@@ -19,6 +19,15 @@ export interface Variant {
   price: number;
   oldPrice: number | null;
   stock: number;
+  /** Har filialning alohida narxi va qoldig'i (BILLZ). Bo'sh/yo'q — filial bo'yicha farq yo'q. */
+  shopStocks?: ShopStock[];
+}
+
+export interface ShopStock {
+  shopId: string;
+  price: number;
+  oldPrice: number | null;
+  stock: number;
 }
 
 export interface Product {

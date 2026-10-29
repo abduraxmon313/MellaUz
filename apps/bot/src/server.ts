@@ -37,13 +37,13 @@ export async function buildServer() {
   if (bot) {
     app.post(
       `/webhook/${config.webhookSecret}`,
-      webhookCallback(bot, "fastify", { secretToken: config.webhookSecret }),
+      webhookCallback(bot, "fastify", { secretToken: config.webhookSecret, onTimeout: "return" }),
     );
   }
   if (adminBot) {
     app.post(
       `/webhook-admin/${config.webhookSecret}`,
-      webhookCallback(adminBot, "fastify", { secretToken: config.webhookSecret }),
+      webhookCallback(adminBot, "fastify", { secretToken: config.webhookSecret, onTimeout: "return" }),
     );
   }
 
