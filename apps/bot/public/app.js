@@ -1100,24 +1100,54 @@ function showAuthBanner() {
 async function init() {
   applyTheme();
   applyIcons(document);
-  try { State.config = await api('/config'); }
-  catch (e) { State.config = { shop_name: 'MELLA', currency: 'so‘m', delivery_fee: 0, free_delivery_from: 0, express_delivery_fee: 0, min_order_amount: 0, payment_methods: [{ id: 'cash', enabled: true }] }; }
-  if (State.config.user_lang && ['uz', 'ru', 'en'].includes(State.config.user_lang) && State.config.user_lang !== State.lang) {
-    State.lang = State.config.user_lang; localStorage.setItem('mella_lang', State.lang);
-  }
+
+  // ── 1) Splash'ni DARHOL yo'qotish (0.8s animatsiya) ──
+  // Foydalanuvchi kutmasin — skeletlar ko'rinadi, ma'lumot fonda yuklanadi.
+  setTimeout(() => {
+    const sp = el('splash');
+    if (sp) { sp.style.opacity = '0'; setTimeout(() => { sp.style.display = 'none'; }, 400); }
+  }, 600);
+
+  // ── 2) Skeletlar va UI darhol ko'rsatiladi ──
   applyI18n();
   renderSortbar();
   el('products').innerHTML = skeletonCards(6);
-  try { State.shops = await api('/shops'); } catch (e) { State.shops = []; }
-  if (State.currentShop && !State.shops.some((s) => s.id === State.currentShop)) State.currentShop = '';
-  renderShopSelector();
-  try { State.categories = await api('/categories'); } catch (e) { State.categories = []; }
-  renderCategories();
-  await loadProducts();
-  renderHero();
   updateBadge(); updateFavBadge();
-  if (!isInTelegram() && !State.config.dev) showAuthBanner();
-  const sp = el('splash'); sp.style.opacity = '0'; setTimeout(() => { sp.style.display = 'none'; }, 500);
+
+  // ── 3) API so'rovlar PARALLEL va FONDA ──
+  // Barchasi bir vaqtda boshlanadi, birortasi yiqilsa qolganlari davom etadi.
+  const configP = api('/config').catch(() => null);
+  const shopsP = api('/shops').catch(() => []);
+  const catsP = api('/categories').catch(() => []);
+
+  // Config birinchi kelsa — tilni yangilaymiz.
+  configP.then((cfg) => {
+    if (!cfg) { State.config = { shop_name: 'MELLA', currency: 'so\u2018m', delivery_fee: 0, free_delivery_from: 0, express_delivery_fee: 0, min_order_amount: 0, payment_methods: [{ id: 'cash', enabled: true }] }; return; }
+    State.config = cfg;
+    if (cfg.user_lang && ['uz', 'ru', 'en'].includes(cfg.user_lang) && cfg.user_lang !== State.lang) {
+      State.lang = cfg.user_lang; localStorage.setItem('mella_lang', State.lang);
+      applyI18n();
+    }
+    if (!isInTelegram() && !cfg.dev) showAuthBanner();
+  });
+
+  // Do'konlar kelsa — tanlagich chiqadi.
+  shopsP.then((shops) => {
+    State.shops = shops || [];
+    if (State.currentShop && !State.shops.some((s) => s.id === State.currentShop)) State.currentShop = '';
+    renderShopSelector();
+  });
+
+  // Kategoriyalar kelsa — chiplar chiqadi.
+  catsP.then((cats) => {
+    State.categories = cats || [];
+    renderCategories();
+  });
+
+  // ── 4) Mahsulotlar — config/shops/cats kutmasdan yuklash boshlanadi ──
+  loadProducts();
+  renderHero();
+
   // Savatdagi narx/qoldiqni fonda tekshiramiz.
   refreshCart().then(() => updateBadge()).catch(() => {});
 }
