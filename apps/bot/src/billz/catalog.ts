@@ -132,8 +132,12 @@ function buildTopLevelMap(tree: BillzCategoryNode[]) {
 
 // ── Ommaviy funksiyalar ─────────────────────────────────────
 
-/** Kategoriyalar ro'yxatini BILLZ'dan yuklaydi (bir marta, kam bo'ladi). */
-export async function fetchCategories(): Promise<Category[]> {
+/** Kategoriyalar ro'yxatini BILLZ'dan yuklaydi.
+ *  Qaytaradi:
+ *    topLevel — Mini App chiplari uchun (faqat yuqori darajali)
+ *    allById  — har qanday kategoriya ID → nomi (pastki kategoriyalar uchun ham)
+ */
+export async function fetchCategories(): Promise<{ topLevel: Category[]; allById: Map<string, string> }> {
   const tree: BillzCategoryNode[] = [];
   for (let page = 1; page <= 20; page++) {
     const r = await billz<{ count?: number; categories?: BillzCategoryNode[] | null }>("/v2/category", {
@@ -145,12 +149,27 @@ export async function fetchCategories(): Promise<Category[]> {
   }
   const { top, order } = buildTopLevelMap(tree);
   const orderIdx = new Map(order.map((c, i) => [c.id, i]));
-  // Faqat noyob yuqori darajali kategoriyalarni qaytaramiz.
+
+  // Barcha kategoriyalar xaritasi: ID → nom (pastki kategoriyalar uchun ham).
+  const allById = new Map<string, string>();
+  const walkAll = (nodes: BillzCategoryNode[]) => {
+    for (const n of nodes) {
+      allById.set(n.id, n.name);
+      if (n.subRows) walkAll(n.subRows);
+    }
+  };
+  walkAll(tree);
+  // Tekis ro'yxatdagi kategoriyalar ham.
+  for (const c of tree) allById.set(c.id, c.name);
+
+  // Faqat noyob yuqori darajali — Mini App chiplari uchun.
   const seen = new Map<string, string>();
-  for (const [id, root] of top) { seen.set(root.id, root.name); }
-  return [...seen.entries()]
+  for (const [, root] of top) { seen.set(root.id, root.name); }
+  const topLevel = [...seen.entries()]
     .map(([id, name]) => ({ id, name, order: orderIdx.get(id) ?? 999 }))
     .sort((a, b) => a.order - b.order);
+
+  return { topLevel, allById };
 }
 
 /** Do'konlar ro'yxatini yuklaydi. */

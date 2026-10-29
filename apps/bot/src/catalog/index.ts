@@ -30,6 +30,9 @@ const KV_CATEGORIES = "billz_categories";
 const KV_SHOPS = "billz_shops";
 
 let categories: Category[] = [];
+/** Barcha BILLZ kategoriya ID → nomi (pastki ham). */
+let allCatNames = new Map<string, string>();
+/** Barcha BILLZ kategoriya ID → nomi (pastki kategoriyalar uchun ham). */
 let shops: BillzShop[] = [];
 let manual: { products: Product[]; hideSamples: boolean } = { products: [], hideSamples: false };
 let manualError = "";
@@ -142,13 +145,14 @@ export async function initCatalog() {
 export async function syncMeta(): Promise<void> {
   try {
     await ensureCurrentShop();
-    const [cats, sh] = await Promise.all([fetchCategories(), fetchShops()]);
-    categories = cats;
+    const [catResult, sh] = await Promise.all([fetchCategories(), fetchShops()]);
+    categories = catResult.topLevel;
+    allCatNames = catResult.allById;
     shops = sh;
     lastError = "";
-    await store.kvSet(KV_CATEGORIES, cats).catch(() => {});
+    await store.kvSet(KV_CATEGORIES, catResult.topLevel).catch(() => {});
     await store.kvSet(KV_SHOPS, sh).catch(() => {});
-    console.log(`[catalog] BILLZ meta: ${cats.length} kategoriya, ${sh.length} do'kon`);
+    console.log(`[catalog] BILLZ meta: ${categories.length} kategoriya (${allCatNames.size} jami), ${sh.length} do'kon`);
   } catch (e) {
     lastError = (e as Error).message;
     console.error("[catalog] BILLZ meta xatosi:", lastError);
@@ -163,19 +167,20 @@ function catName(catId: string, lang: Lang): string {
   if (!catId) return "";
   const c = categories.find((x) => x.id === catId);
   if (c) return loc(c.name, lang);
-  return catId;
+  const name = allCatNames.get(catId);
+  if (name) return name;
+  return "";
 }
 
-function productCatName(p: BillzProductRaw, lang: Lang): string {
+function productCatName(p: BillzProductRaw, _lang: Lang): string {
   const cats = p.categories;
   if (!cats?.length) return "";
-  // Kategoriyalardan birinchisining nomini qaytaramiz.
-  // Avval bizning categories ro'yxatidan qidiramiz (yuqori darajali nom uchun).
+  // 1) allCatNames xaritasidan (BILLZ daraxti — eng to'g'ri nom)
   for (const c of cats) {
-    const found = categories.find((x) => x.id === c.id);
-    if (found) return loc(found.name, lang);
+    const name = allCatNames.get(c.id);
+    if (name) return name;
   }
-  // Topilmasa — BILLZ bergan nomni qaytaramiz.
+  // 2) BILLZ mahsulot ichida kelgan nom (fallback)
   return cats[0]?.name ?? "";
 }
 
