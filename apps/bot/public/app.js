@@ -17,6 +17,9 @@ const FAV_KEY = 'mella_fav_v1';
 const State = {
   config: null, categories: [], products: [], cart: loadCart(), favorites: loadFavorites(),
   currentCategory: null, search: '', sort: 'popular',
+  shops: [], currentShop: localStorage.getItem('mella_shop') || '',
+  productsPage: 1, hasMore: false, _loadingMore: false,
+  productsPage: 1, hasMore: false, _loadingMore: false,
   lang: localStorage.getItem('mella_lang') || ((tg && tg.initDataUnsafe && tg.initDataUnsafe.user && tg.initDataUnsafe.user.language_code) || 'uz'),
   view: 'home',
   _map: null, _pickLat: null, _pickLng: null, _pickAddr: '', _geoT: null,
@@ -87,6 +90,7 @@ const I18N = {
   hero_eyebrow: { uz: 'Yangi mavsum', ru: 'Новый сезон', en: 'New season' },
   hero_title: { uz: 'Tabiiy charm.<br>Nafis uslub.', ru: 'Натуральная кожа.<br>Изящный стиль.', en: 'Genuine leather.<br>Refined style.' },
   hero_cta: { uz: 'Ko‘rish', ru: 'Смотреть', en: 'Explore' },
+  all_shops: { uz: 'Barcha filiallar', ru: 'Все филиалы', en: 'All branches' },
   all: { uz: 'Hammasi', ru: 'Все', en: 'All' },
   add: { uz: 'Savatga', ru: 'В корзину', en: 'Add to bag' },
   choose: { uz: 'Tanlash', ru: 'Выбрать', en: 'Select' },
@@ -373,6 +377,31 @@ function renderHero() {
     </div>`;
   applyIcons(wrap);
   el('heroCta').onclick = () => { haptic('light'); el('catWrap').scrollIntoView({ behavior: 'smooth', block: 'start' }); };
+}
+
+/* ═══════════════════════════════════════════════════════════
+   DO'KON (FILIAL) TANLAGICH
+   ═══════════════════════════════════════════════════════════ */
+function renderShopSelector() {
+  const wrap = el('shopSelector'); if (!wrap) return;
+  if (State.shops.length < 2) { wrap.hidden = true; return; }
+  wrap.hidden = false;
+  const all = { id: '', name: L('all_shops') };
+  const items = [all, ...State.shops];
+  wrap.innerHTML = items.map((s, i) => {
+    const active = State.currentShop === s.id;
+    return '<button class="shop-chip stagger-chip ' + (active ? 'active' : '') + '" style="--i:' + i + '" data-shop="' + esc(s.id) + '"><span data-ic="' + (s.id ? 'store' : 'globe') + '"></span><span class="lbl">' + esc(s.name) + '</span></button>';
+  }).join('');
+  applyIcons(wrap);
+  wrap.querySelectorAll('.shop-chip').forEach((chip) => chip.onclick = () => {
+    const id = chip.dataset.shop;
+    if (State.currentShop === id) return;
+    State.currentShop = id;
+    localStorage.setItem('mella_shop', id);
+    haptic('light');
+    renderShopSelector();
+    reloadCatalog();
+  });
 }
 
 /* ═══════════════════════════════════════════════════════════
@@ -1004,15 +1033,40 @@ async function reloadCatalog() {
 }
 
 async function loadProducts() {
+  State.productsPage = 1; State.hasMore = true;
   el('products').innerHTML = skeletonCards(6);
   try {
     const params = new URLSearchParams();
     if (State.currentCategory) params.set('category', State.currentCategory);
     if (State.search) params.set('q', State.search);
-    params.set('sort', State.sort);
-    State.products = await api('/products?' + params.toString());
+    if (State.currentShop) params.set('shop', State.currentShop);
+    params.set('page', '1'); params.set('limit', '20');
+    const r = await api('/products?' + params.toString());
+    State.products = r.products ?? r;
+    State.hasMore = r.has_more ?? false;
     renderProducts();
   } catch (e) { el('products').innerHTML = ''; toast(e.message); }
+}
+
+async function loadMoreProducts() {
+  if (!State.hasMore || State._loadingMore) return;
+  State._loadingMore = true;
+  try {
+    const params = new URLSearchParams();
+    if (State.currentCategory) params.set('category', State.currentCategory);
+    if (State.search) params.set('q', State.search);
+    if (State.currentShop) params.set('shop', State.currentShop);
+    params.set('page', String(State.productsPage + 1)); params.set('limit', '20');
+    const r = await api('/products?' + params.toString());
+    const items = r.products ?? r;
+    if (items.length) {
+      State.products = [...State.products, ...items];
+      State.hasMore = r.has_more ?? false;
+      State.productsPage += 1;
+      renderProducts();
+    } else { State.hasMore = false; }
+  } catch (e) { console.warn('[loadMore]', e.message); }
+  State._loadingMore = false;
 }
 
 function setLang(lang, opts) {
@@ -1046,21 +1100,54 @@ function showAuthBanner() {
 async function init() {
   applyTheme();
   applyIcons(document);
-  try { State.config = await api('/config'); }
-  catch (e) { State.config = { shop_name: 'MELLA', currency: 'so‘m', delivery_fee: 0, free_delivery_from: 0, express_delivery_fee: 0, min_order_amount: 0, payment_methods: [{ id: 'cash', enabled: true }] }; }
-  if (State.config.user_lang && ['uz', 'ru', 'en'].includes(State.config.user_lang) && State.config.user_lang !== State.lang) {
-    State.lang = State.config.user_lang; localStorage.setItem('mella_lang', State.lang);
-  }
+
+  // ── 1) Splash'ni DARHOL yo'qotish (0.8s animatsiya) ──
+  // Foydalanuvchi kutmasin — skeletlar ko'rinadi, ma'lumot fonda yuklanadi.
+  setTimeout(() => {
+    const sp = el('splash');
+    if (sp) { sp.style.opacity = '0'; setTimeout(() => { sp.style.display = 'none'; }, 400); }
+  }, 600);
+
+  // ── 2) Skeletlar va UI darhol ko'rsatiladi ──
   applyI18n();
   renderSortbar();
   el('products').innerHTML = skeletonCards(6);
-  try { State.categories = await api('/categories'); } catch (e) { State.categories = []; }
-  renderCategories();
-  await loadProducts();
-  renderHero();
   updateBadge(); updateFavBadge();
-  if (!isInTelegram() && !State.config.dev) showAuthBanner();
-  const sp = el('splash'); sp.style.opacity = '0'; setTimeout(() => { sp.style.display = 'none'; }, 500);
+
+  // ── 3) API so'rovlar PARALLEL va FONDA ──
+  // Barchasi bir vaqtda boshlanadi, birortasi yiqilsa qolganlari davom etadi.
+  const configP = api('/config').catch(() => null);
+  const shopsP = api('/shops').catch(() => []);
+  const catsP = api('/categories').catch(() => []);
+
+  // Config birinchi kelsa — tilni yangilaymiz.
+  configP.then((cfg) => {
+    if (!cfg) { State.config = { shop_name: 'MELLA', currency: 'so\u2018m', delivery_fee: 0, free_delivery_from: 0, express_delivery_fee: 0, min_order_amount: 0, payment_methods: [{ id: 'cash', enabled: true }] }; return; }
+    State.config = cfg;
+    if (cfg.user_lang && ['uz', 'ru', 'en'].includes(cfg.user_lang) && cfg.user_lang !== State.lang) {
+      State.lang = cfg.user_lang; localStorage.setItem('mella_lang', State.lang);
+      applyI18n();
+    }
+    if (!isInTelegram() && !cfg.dev) showAuthBanner();
+  });
+
+  // Do'konlar kelsa — tanlagich chiqadi.
+  shopsP.then((shops) => {
+    State.shops = shops || [];
+    if (State.currentShop && !State.shops.some((s) => s.id === State.currentShop)) State.currentShop = '';
+    renderShopSelector();
+  });
+
+  // Kategoriyalar kelsa — chiplar chiqadi.
+  catsP.then((cats) => {
+    State.categories = cats || [];
+    renderCategories();
+  });
+
+  // ── 4) Mahsulotlar — config/shops/cats kutmasdan yuklash boshlanadi ──
+  loadProducts();
+  renderHero();
+
   // Savatdagi narx/qoldiqni fonda tekshiramiz.
   refreshCart().then(() => updateBadge()).catch(() => {});
 }
@@ -1073,6 +1160,12 @@ function bindEvents() {
   ['emptyGoShop', 'favGoShop', 'ordersGoShop'].forEach((id) => { const b = el(id); if (b) b.onclick = () => switchView('home'); });
   el('favBack').onclick = () => { haptic('light'); switchView('home'); };
   let searchTimer;
+  // Infinite scroll — sahifani pastga tushirganda yangi mahsulotlar yuklanadi.
+  window.addEventListener('scroll', () => {
+    if (State.view !== 'home' || !State.hasMore || State._loadingMore) return;
+    const scrollBottom = window.innerHeight + window.scrollY;
+    if (scrollBottom >= document.body.offsetHeight - 600) loadMoreProducts();
+  });
   el('searchInput').oninput = (e) => { State.search = e.target.value.trim(); el('searchClear').hidden = !State.search; clearTimeout(searchTimer); searchTimer = setTimeout(loadProducts, 350); };
   el('searchInput').onkeydown = (e) => { if (e.key === 'Enter') e.target.blur(); };
   el('searchClear').onclick = () => { el('searchInput').value = ''; State.search = ''; el('searchClear').hidden = true; loadProducts(); };
