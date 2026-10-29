@@ -19,13 +19,10 @@ import type { ManualRow } from "../store.js";
 import type { CatalogSnapshot, Category, Lang, Localized, Product, Variant } from "./types.js";
 
 /**
- * Katalog xizmati — YANGI yondashuv:
- *
- * • Kategoriyalar va do'konlar — xotirada (kam, bir marta yuklanadi).
- * • Mahsulotlar — BILLZ'dan to'g'ridan-to'g'ri sahifalab olinadi
- *   (foydalanuvchi scroll qilsa keyingisi keladi). Xotirada saqlanmaydi.
- * • Qo'lda kiritilgan mahsulotlar (admin panel) — bazadan.
- * • Mock katalog — BILLZ ulanmagan bo'lsa.
+ * Katalog xizmati:
+ * • Kategoriyalar va do'konlar — xotirada (bir marta yuklanadi).
+ * • Mahsulotlar — BILLZ'dan sahifalab, serverda guruhlab qaytariladi.
+ * • Variatsiyalar ota tovarga birlashtiriladi (bitta karta + o'lcham tanlagich).
  */
 
 const SERVICE_TYPE_ID = "5a0e556a-15f8-47ac-ae07-46972f3c6ab4";
@@ -39,7 +36,6 @@ let manualError = "";
 let lastError = "";
 let mockSnapshot: CatalogSnapshot | null = null;
 
-/** Rasm kaliti → asl URL. */
 const imageMap = new Map<string, string>();
 
 export function imageKey(url: string) {
@@ -66,7 +62,7 @@ export function catalogStatus() {
   return {
     source: hasBillz ? "billz" : "mock",
     syncedAt: new Date().toISOString(),
-    products: hasBillz ? "lazy (BILLZ'dan sahifalab)" : (mockSnapshot?.products.length ?? 0),
+    products: hasBillz ? "BILLZ (sahifalab)" : (mockSnapshot?.products.length ?? 0),
     categories: categories.length,
     shops: shops.length,
     manualProducts: manual.products.length,
@@ -109,7 +105,6 @@ export async function refreshManual(): Promise<void> {
     manualError = "";
   } catch (e) {
     manualError = (e as Error).message;
-    console.warn("[catalog] qo'lda kiritilgan mahsulotlar o'qilmadi:", manualError);
   }
 }
 
@@ -130,23 +125,20 @@ export async function initCatalog() {
     return;
   }
 
-  // Saqlangan kategoriyalar va do'konlarni yuklash (tez start).
   try {
     const saved = await store.kvGet<Category[]>(KV_CATEGORIES);
-    if (saved?.length) { categories = saved; console.log(`[catalog] saqlangan kategoriyalar: ${saved.length}`); }
+    if (saved?.length) { categories = saved; }
   } catch {}
   try {
     const saved = await store.kvGet<BillzShop[]>(KV_SHOPS);
     if (saved?.length) shops = saved;
   } catch {}
 
-  // Fonda yangilash.
   void syncMeta();
   catTimer = setInterval(() => void syncMeta(), config.billz.syncMinutes * 60_000);
   catTimer.unref();
 }
 
-/** Faqat kategoriyalar va do'konlarni yangilaydi (yengil). */
 export async function syncMeta(): Promise<void> {
   try {
     await ensureCurrentShop();
@@ -163,75 +155,122 @@ export async function syncMeta(): Promise<void> {
   }
 }
 
-/** Admin /sync buyrug'i uchun. */
-export async function syncNow(): Promise<void> {
-  await syncMeta();
+export async function syncNow(): Promise<void> { await syncMeta(); }
+
+// ── Kategoriya nomi ─────────────────────────────────────────
+
+function catName(catId: string, lang: Lang): string {
+  if (!catId) return "";
+  const c = categories.find((x) => x.id === catId);
+  if (c) return loc(c.name, lang);
+  return catId;
 }
 
-// ── BILLZ mahsulotni Mini App formatiga o'girish ────────────
-
-function billzToCard(p: BillzProductRaw, lang: Lang, shopId?: string) {
-  const pr = priceOf(p, shopId);
-  const stock = stockOf(p, shopId);
-  const images = photosOf(p);
-  const name = p.name ?? "";
-  return {
-    id: p.id,
-    name,
-    category: (p.categories?.[0]?.name) ?? "",
-    price: pr.price,
-    old_price: pr.oldPrice,
-    price_from: false,
-    image: publicImage(images[0]),
-    in_stock: stock > 0,
-    has_variants: Boolean(p.is_variative),
-    single_variant_id: p.is_variative ? null : p.id,
-    stock,
-    sku: p.sku ?? "",
-    brand: p.brand_name ?? "",
-  };
+function productCatName(p: BillzProductRaw, lang: Lang): string {
+  const cats = p.categories;
+  if (!cats?.length) return "";
+  // Kategoriyalardan birinchisining nomini qaytaramiz.
+  // Avval bizning categories ro'yxatidan qidiramiz (yuqori darajali nom uchun).
+  for (const c of cats) {
+    const found = categories.find((x) => x.id === c.id);
+    if (found) return loc(found.name, lang);
+  }
+  // Topilmasa — BILLZ bergan nomni qaytaramiz.
+  return cats[0]?.name ?? "";
 }
 
-function billzToDetail(p: BillzProductRaw, related: BillzProductRaw[], lang: Lang, shopId?: string) {
-  const isParent = p.is_variative && !p.parent_id;
-  const children = isParent ? related.filter((c) => c.parent_id === p.id) : [p];
-  const baseName = p.name ?? "";
-  const images = photosOf(p);
-  for (const c of children) { for (const u of photosOf(c)) { if (!images.includes(u)) images.push(u); } }
+// ── BILLZ sahifasini guruhlash ──────────────────────────────
+/**
+ * BILLZ `GET /v2/products` variatsiyalarni tekis ro'yxatda qaytaradi.
+ * Biz ota tovar + variatsiyalarni birlashtiramiz:
+ *  - parent_id bor → variatsiya (kartaga kirmaydi, ota tovar ichiga kiradi)
+ *  - is_variative && !parent_id → ota tovar skeleti (o'zi sotilmaydi)
+ *  - oddiy tovar → bitta variant bilan karta
+ */
+interface GroupedProduct {
+  parent: BillzProductRaw;
+  children: BillzProductRaw[];
+}
 
-  const variants = children.map((c) => {
+function groupBillzPage(items: BillzProductRaw[]): GroupedProduct[] {
+  const byId = new Map(items.map((p) => [p.id, p]));
+  const parentMap = new Map<string, BillzProductRaw[]>();
+
+  for (const p of items) {
+    if (p.product_type_id === SERVICE_TYPE_ID) continue;
+    if (p.is_variative && !p.parent_id) {
+      // Ota tovar — guruhlash uchun saqlaymiz.
+      if (!parentMap.has(p.id)) parentMap.set(p.id, []);
+      continue;
+    }
+    if (p.parent_id) {
+      // Variatsiya — ota tovar ostiga yig'amiz.
+      const group = parentMap.get(p.parent_id);
+      if (group) group.push(p);
+      else parentMap.set(p.parent_id, [p]);
+      continue;
+    }
+    // Oddiy tovar (variatsiyasiz).
+    parentMap.set(p.id, [p]);
+  }
+
+  const result: GroupedProduct[] = [];
+  for (const [key, children] of parentMap) {
+    const parent = byId.get(key);
+    if (!parent) {
+      // Ota tovar shu sahifada yo'q — variatsiyalarning o'zini ko'rsatamiz.
+      if (children.length) result.push({ parent: children[0]!, children });
+      continue;
+    }
+    if (parent.is_variative && !parent.parent_id) {
+      // Ota tovar — variatsiyalar bilan birgalikda.
+      if (children.length === 0) continue; // variatsiyalarsiz ota tovar ko'rsatilmaydi
+      result.push({ parent, children });
+    } else {
+      // Oddiy tovar.
+      result.push({ parent, children: [parent] });
+    }
+  }
+  return result;
+}
+
+function groupedToCard(g: GroupedProduct, lang: Lang, shopId?: string) {
+  const { parent, children } = g;
+  const baseName = parent.base_name || parent.name?.split(" / ")[0]?.trim() || parent.name || "";
+  const isVariative = children.length > 1 || (children[0] && children[0].id !== parent.id);
+
+  // Rasmlar: ota tovardan + variatsiyalardan.
+  const images: string[] = [];
+  for (const src of [parent, ...children]) {
+    for (const u of photosOf(src)) { if (!images.includes(u)) images.push(u); }
+  }
+
+  // Narx: eng arzon variant (qoldig'i bor) tanlangan do'kondan.
+  let bestPrice = 0, bestOld: number | null = null, totalStk = 0;
+  for (const c of children) {
     const pr = priceOf(c, shopId);
-    const st = stockOf(c, shopId);
-    return {
-      id: c.id,
-      label: isParent ? variantLabel(c, baseName) : "",
-      price: pr.price, old_price: pr.oldPrice,
-      stock: st, in_stock: st > 0,
-    };
-  }).filter((v) => v.price > 0).sort((a, b) => a.label.localeCompare(b.label, undefined, { numeric: true }));
+    const stk = stockOf(c, shopId);
+    totalStk += stk;
+    if (pr.price > 0 && (bestPrice === 0 || pr.price < bestPrice || (stk > 0 && bestPrice === 0))) {
+      bestPrice = pr.price;
+      bestOld = pr.oldPrice;
+    }
+  }
 
-  const first = variants[0];
-  const totalStock = variants.reduce((s, v) => s + v.stock, 0);
+  const category = productCatName(parent, lang);
+
   return {
-    id: p.id,
+    id: parent.id,
     name: baseName,
-    category: (p.categories?.[0]?.name) ?? "",
-    price: first?.price ?? 0,
-    old_price: first?.old_price ?? null,
-    price_from: new Set(variants.map((v) => v.price).filter(Boolean)).size > 1,
+    category,
+    price: bestPrice,
+    old_price: bestOld,
+    price_from: new Set(children.map((c) => priceOf(c, shopId).price).filter(Boolean)).size > 1,
     image: publicImage(images[0]),
-    images: images.map(publicImage),
-    in_stock: totalStock > 0,
-    has_variants: variants.length > 1 || Boolean(variants[0]?.label),
-    single_variant_id: variants.length === 1 ? variants[0]!.id : null,
-    stock: totalStock,
-    description: p.description ?? "",
-    brand: p.brand_name ?? "",
-    sku: p.sku ?? "",
-    attribute_name: [...new Set(children.flatMap((c) =>
-      (c.product_attributes ?? []).map((a) => String(a.attribute_name ?? "").trim())
-    ))].filter(Boolean).join(" / "),
-    variants,
+    in_stock: totalStk > 0,
+    has_variants: isVariative,
+    single_variant_id: isVariative ? null : (children[0]?.id ?? parent.id),
+    stock: totalStk,
   };
 }
 
@@ -245,8 +284,11 @@ export async function listProducts(
   opts: { page?: number; limit?: number; category?: string; q?: string; shopId?: string; ids?: string[] },
   lang: Lang,
 ) {
-  // Qo'lda kiritilganlar (sahifa 1 da boshiga qo'shiladi).
-  const manualCards = (opts.page ?? 1) === 1 && !opts.ids?.length
+  const page = opts.page ?? 1;
+  const limit = opts.limit ?? 20;
+
+  // Qo'lda kiritilganlar (faqat birinchi sahifada).
+  const manualCards = page === 1 && !opts.ids?.length
     ? manual.products
         .filter((p) => !opts.category || p.categoryIds.includes(opts.category))
         .filter((p) => {
@@ -254,21 +296,23 @@ export async function listProducts(
           const q = opts.q.toLowerCase();
           return loc(p.name, lang).toLowerCase().includes(q) || p.sku.toLowerCase().includes(q);
         })
-        .map((p) => ({
-          id: p.id, name: loc(p.name, lang), category: "",
-          price: p.variants[0]?.price ?? 0, old_price: p.variants[0]?.oldPrice ?? null,
-          price_from: false, image: publicImage(p.images[0]),
-          in_stock: p.variants.some((v) => v.stock > 0),
-          has_variants: p.variants.length > 1 || Boolean(p.variants[0]?.label),
-          single_variant_id: p.variants.length === 1 ? p.variants[0]!.id : null,
-          stock: p.variants.reduce((s, v) => s + v.stock, 0),
-        }))
+        .map((p) => {
+          const v = p.variants[0]!;
+          const stock = p.variants.reduce((s, x) => s + x.stock, 0);
+          return {
+            id: p.id, name: loc(p.name, lang),
+            category: catName(p.categoryIds[0] ?? "", lang),
+            price: v.price, old_price: v.oldPrice, price_from: false,
+            image: publicImage(p.images[0]), in_stock: stock > 0,
+            has_variants: p.variants.length > 1 || Boolean(p.variants[0]?.label),
+            single_variant_id: p.variants.length === 1 ? v.id : null, stock,
+          };
+        })
     : [];
 
   if (!hasBillz) {
-    // Mock katalog.
     const mock = mockSnapshot;
-    if (!mock) return manualCards;
+    if (!mock) return { products: manualCards, total: manualCards.length, page, has_more: false };
     const hideBase = manual.hideSamples;
     let list = hideBase ? [] : mock.products;
     if (opts.category) list = list.filter((p) => p.categoryIds.includes(opts.category!));
@@ -276,14 +320,13 @@ export async function listProducts(
       const q = opts.q.toLowerCase();
       list = list.filter((p) => loc(p.name, lang).toLowerCase().includes(q) || p.sku.toLowerCase().includes(q));
     }
-    const page = opts.page ?? 1;
-    const limit = opts.limit ?? 20;
     const start = (page - 1) * limit;
     const slice = list.slice(start, start + limit).map((p) => {
       const v = p.variants[0]!;
       const stock = p.variants.reduce((s, x) => s + x.stock, 0);
       return {
-        id: p.id, name: loc(p.name, lang), category: "",
+        id: p.id, name: loc(p.name, lang),
+        category: catName(p.categoryIds[0] ?? "", lang),
         price: v.price, old_price: v.oldPrice, price_from: false,
         image: publicImage(p.images[0]), in_stock: stock > 0,
         has_variants: p.variants.length > 1, single_variant_id: p.variants.length === 1 ? v.id : null, stock,
@@ -292,26 +335,33 @@ export async function listProducts(
     return { products: [...manualCards, ...slice], total: list.length + manualCards.length, page, has_more: start + limit < list.length };
   }
 
-  // BILLZ — sahifalab olish.
-  const page = opts.page ?? 1;
-  const limit = opts.limit ?? 20;
+  // ── BILLZ: sahifalab olish + guruhlash ──
   try {
-    const r = await fetchProductsPage({ page, limit, search: opts.q });
-    const filtered = r.products
-      .filter((p) => p && p.id && p.product_type_id !== SERVICE_TYPE_ID)
-      .filter((p) => !p.is_variative || p.parent_id) // ota tovarni yashiramiz
-      .filter((p) => {
-        const pr = priceOf(p, opts.shopId);
-        return pr.price > 0;
-      })
-      .filter((p) => {
-        if (!opts.category || !p.categories?.length) return true;
-        return p.categories.some((c) => c.id === opts.category || c.name === opts.category);
-      });
+    // Ko'proq olamiz — guruhlash natijasida kamayadi.
+    const r = await fetchProductsPage({ page, limit: limit * 3, search: opts.q });
+    const grouped = groupBillzPage(r.products);
 
-    const cards = filtered.map((p) => billzToCard(p, lang, opts.shopId));
+    let cards = grouped
+      .map((g) => groupedToCard(g, lang, opts.shopId))
+      .filter((c) => c.price > 0); // narxsizlarni yashiramiz
+
+    // Kategoriya filtri.
+    if (opts.category) {
+      cards = cards.filter((c) => {
+        // Card'dagi category nomi bilan solishtirish.
+        if (!c.category) return false;
+        const catObj = categories.find((x) => x.id === opts.category);
+        return catObj ? c.category === loc(catObj.name, lang) : false;
+      });
+    }
+
+    // Do'konda qoldig'i yo'qlarni pastga.
+    cards.sort((a, b) => Number(b.in_stock) - Number(a.in_stock));
+
+    const sliced = cards.slice(0, limit);
+
     return {
-      products: [...manualCards, ...cards],
+      products: [...manualCards, ...sliced],
       total: r.total,
       page,
       has_more: page * limit < r.total,
@@ -327,7 +377,8 @@ export async function getProductDetail(id: string, lang: Lang, shopId?: string) 
   const mp = manual.products.find((p) => p.id === id);
   if (mp) {
     return {
-      id: mp.id, name: loc(mp.name, lang), category: "",
+      id: mp.id, name: loc(mp.name, lang),
+      category: catName(mp.categoryIds[0] ?? "", lang),
       price: mp.variants[0]?.price ?? 0, old_price: mp.variants[0]?.oldPrice ?? null,
       price_from: false, image: publicImage(mp.images[0]),
       images: mp.images.map(publicImage),
@@ -349,7 +400,8 @@ export async function getProductDetail(id: string, lang: Lang, shopId?: string) 
     if (!p) return null;
     const v = p.variants[0]!;
     return {
-      id: p.id, name: loc(p.name, lang), category: "",
+      id: p.id, name: loc(p.name, lang),
+      category: catName(p.categoryIds[0] ?? "", lang),
       price: v.price, old_price: v.oldPrice, price_from: false,
       image: publicImage(p.images[0]), images: p.images.map(publicImage),
       in_stock: v.stock > 0, has_variants: p.variants.length > 1,
@@ -364,38 +416,92 @@ export async function getProductDetail(id: string, lang: Lang, shopId?: string) 
     };
   }
 
-  // BILLZ — mahsulotni va uning variatsiyalarini qidiramiz.
+  // ── BILLZ: mahsulot va uning variatsiyalarini topish ──
   try {
-    const r = await fetchProductsPage({ page: 1, limit: 50, search: id });
+    // Kattaroq sahifa olib ichidan qidiramiz (ota tovar va variatsiyalar birga kelishi uchun).
+    const r = await fetchProductsPage({ page: 1, limit: 100, search: id });
     const all = r.products ?? [];
+
+    // ID bo'yicha aniq topamiz.
     let target = all.find((p) => p.id === id);
-    if (!target) return null;
-    // Agar bu variatsiya bo'lsa — ota tovarni topamiz.
-    if (target.parent_id) {
-      const parent = all.find((p) => p.id === target!.parent_id);
-      if (parent) target = parent;
+    if (!target) {
+      // Agar topilmasa — barcode/sku bo'yicha.
+      target = all.find((p) => p.sku === id || p.barcode === id);
     }
-    return billzToDetail(target, all, lang, shopId);
+    if (!target) return null;
+
+    // Agar bu variatsiya bo'lsa — ota tovarni topamiz.
+    let parent = target;
+    if (target.parent_id) {
+      const p = all.find((x) => x.id === target!.parent_id);
+      if (p) parent = p;
+    }
+
+    // Barcha variatsiyalarni yig'amiz.
+    const children = parent.is_variative && !parent.parent_id
+      ? all.filter((x) => x.parent_id === parent.id)
+      : [parent];
+
+    const baseName = parent.base_name || parent.name?.split(" / ")[0]?.trim() || parent.name || "";
+    const images: string[] = [];
+    for (const src of [parent, ...children]) {
+      for (const u of photosOf(src)) { if (!images.includes(u)) images.push(u); }
+    }
+
+    const isVariative = children.length > 1 || (children.some((c) => c.parent_id));
+    const variants = children.map((c) => {
+      const pr = priceOf(c, shopId);
+      const st = stockOf(c, shopId);
+      return {
+        id: c.id,
+        label: isVariative ? variantLabel(c, baseName) : "",
+        price: pr.price, old_price: pr.oldPrice,
+        stock: st, in_stock: st > 0,
+      };
+    }).filter((v) => v.price > 0).sort((a, b) => a.label.localeCompare(b.label, undefined, { numeric: true }));
+
+    const first = variants[0];
+    const totalStk = variants.reduce((s, v) => s + v.stock, 0);
+    const category = productCatName(parent, lang);
+
+    return {
+      id: parent.id,
+      name: baseName,
+      category,
+      price: first?.price ?? 0,
+      old_price: first?.old_price ?? null,
+      price_from: new Set(variants.map((v) => v.price).filter(Boolean)).size > 1,
+      image: publicImage(images[0]),
+      images: images.map(publicImage),
+      in_stock: totalStk > 0,
+      has_variants: variants.length > 1 || Boolean(variants[0]?.label),
+      single_variant_id: variants.length === 1 ? variants[0]!.id : null,
+      stock: totalStk,
+      description: parent.description ?? "",
+      brand: parent.brand_name ?? "",
+      sku: parent.sku ?? "",
+      attribute_name: [...new Set(children.flatMap((c) =>
+        (c.product_attributes ?? []).map((a) => String(a.attribute_name ?? "").trim())
+      ))].filter(Boolean).join(" / "),
+      variants,
+    };
   } catch (e) {
-    console.error("[catalog] BILLZ product detail xato:", (e as Error).message);
+    console.error("[catalog] BILLZ detail xato:", (e as Error).message);
     return null;
   }
 }
 
 export function findVariant(variantId: string): { product: Product; variant: Variant } | null {
-  // Qo'lda kiritilgan mahsulotlardan qidiramiz.
   for (const p of manual.products) {
     const v = p.variants.find((x) => x.id === variantId);
     if (v) return { product: p, variant: v };
   }
-  // Mock katalogdan.
   if (mockSnapshot) {
     for (const p of mockSnapshot.products) {
       const v = p.variants.find((x) => x.id === variantId);
       if (v) return { product: p, variant: v };
     }
   }
-  // BILLZ variant — buyurtma yaratishda serverda narx/qoldiq qayta tekshiriladi.
   return null;
 }
 
