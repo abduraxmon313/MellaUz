@@ -15,7 +15,7 @@ import { billz } from "./client.js";
 
 const SERVICE_TYPE_ID = "5a0e556a-15f8-47ac-ae07-46972f3c6ab4";
 const PAGE_LIMIT = 100;
-const MAX_PAGES = 200;
+const MAX_PAGES = 500;
 
 interface BillzCategoryRef {
   id: string;
