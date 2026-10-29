@@ -1,29 +1,32 @@
 import { config } from "../config.js";
-import type { CatalogSnapshot, Category, Product, Variant } from "../catalog/types.js";
+import type { Category } from "../catalog/types.js";
 import { billz } from "./client.js";
 
 /**
- * BILLZ katalogini to'liq yuklab, Mini App modeliga o'giradi.
+ * BILLZ katalogi — YANGI yondashuv:
  *
- *  • GET /v2/products (limit ≤ 300, sahifalab) — variatsiyalar tekis ro'yxatda keladi,
- *    `parent_id` orqali ota tovarga guruhlaymiz (bitta karta + o'lcham tanlagich).
- *  • GET /v2/category — kategoriya daraxti; tovar kategoriyasini yuqori darajadagi
- *    kategoriyaga ko'taramiz (Mini App'dagi chiplar uchun).
- *  • Narx va qoldiq — do'kon kesimida (`BILLZ_SHOP_IDS`).
- *  • Natija faqat BARCHA sahifalar muvaffaqiyatli yuklangandan keyin qo'llanadi.
+ * Eski holat: 23 000+ mahsulotni birdaniga yuklab, xotirada saqlash → BILLZ 500/timeout.
+ *
+ * Yangi holat:
+ *  • Kategoriyalar bir marta yuklanadi (ular kam) va xotirada saqlanadi.
+ *  • Mahsulotlar BILLZ'dan to'g'ridan-to'g'ri sahifalab olinadi (foydalanuvchi
+ *    scroll qilsa — keyingi sahifa). Xotirada saqlanmaydi.
+ *  • Do'konlar ro'yxati bir marta yuklanadi.
  */
 
-const SERVICE_TYPE_ID = "5a0e556a-15f8-47ac-ae07-46972f3c6ab4";
-const PAGE_LIMIT = 100;
-const MAX_PAGES = 500;
+// ── Tiplar ──────────────────────────────────────────────────
 
-interface BillzCategoryRef {
-  id: string;
-  name: string;
-  parent_id?: string;
+interface BillzCategoryRef { id: string; name: string; parent_id?: string }
+
+interface BillzCategoryNode {
+  id: string; name: string; parent_id?: string;
+  subRows?: BillzCategoryNode[] | null;
+  product_count?: number;
 }
 
-interface BillzProduct {
+export interface BillzShop { id: string; name: string }
+
+export interface BillzProductRaw {
   id: string;
   name: string;
   base_name?: string;
@@ -39,92 +42,50 @@ interface BillzProduct {
   product_attributes?: { attribute_name?: string; attribute_value?: string }[] | null;
   product_type_id?: string;
   shop_measurement_values?: { shop_id: string; active_measurement_value: number | string }[] | null;
-  shop_prices?:
-    | {
-        shop_id: string;
-        retail_price: number;
-        retail_currency?: string;
-        promo_price?: number;
-        promos?: unknown[] | null;
-      }[]
-    | null;
+  shop_prices?: {
+    shop_id: string; retail_price: number; retail_currency?: string;
+    promo_price?: number; promos?: unknown[] | null;
+  }[] | null;
   updated_at?: string;
 }
 
-interface BillzCategoryNode {
-  id: string;
-  name: string;
-  parent_id?: string;
-  subRows?: BillzCategoryNode[] | null;
-  product_count?: number;
-}
+// ── Yordamchi funksiyalar ───────────────────────────────────
 
-async function fetchAllProducts(): Promise<BillzProduct[]> {
-  const all: BillzProduct[] = [];
-  let total = Infinity;
-  for (let page = 1; page <= MAX_PAGES && all.length < total; page++) {
-    const r = await billz<{ count?: number; products?: BillzProduct[] | null }>("/v2/products", {
-      query: { limit: PAGE_LIMIT, page },
-    });
-    const items = r.products ?? [];
-    total = Number(r.count ?? 0);
-    all.push(...items);
-    if (items.length < PAGE_LIMIT) break;
-  }
-  if (Number.isFinite(total) && total > 0 && all.length < total) {
-    throw new Error(`BILLZ katalogi to'liq yuklanmadi: ${all.length}/${total}`);
-  }
-  return all;
-}
-
-async function fetchCategoryTree(): Promise<BillzCategoryNode[]> {
-  const out: BillzCategoryNode[] = [];
-  for (let page = 1; page <= 20; page++) {
-    const r = await billz<{ count?: number; categories?: BillzCategoryNode[] | null }>("/v2/category", {
-      query: { limit: 200, page },
-    });
-    const items = r.categories ?? [];
-    out.push(...items);
-    if (items.length < 200) break;
-  }
-  return out;
-}
-
-const n = (v: unknown) => {
-  const x = Number(v);
-  return Number.isFinite(x) ? x : 0;
-};
+const n = (v: unknown) => { const x = Number(v); return Number.isFinite(x) ? x : 0; };
 
 function shopAllowed(shopId: string) {
   return config.billz.shopIds.length === 0 || config.billz.shopIds.includes(shopId);
 }
 
-function priceOf(p: BillzProduct): { price: number; oldPrice: number | null } {
+export function priceOf(p: BillzProductRaw, shopId?: string): { price: number; oldPrice: number | null } {
   const prices = (p.shop_prices ?? []).filter((x) => n(x.retail_price) > 0);
-  // Avval sozlangan do'kon tartibida qidiramiz, topilmasa — birinchisi.
-  let sp = undefined as (typeof prices)[number] | undefined;
-  for (const id of config.billz.shopIds) {
-    sp = prices.find((x) => x.shop_id === id);
-    if (sp) break;
+  let sp: (typeof prices)[number] | undefined;
+  if (shopId) {
+    sp = prices.find((x) => x.shop_id === shopId);
+  } else {
+    for (const id of config.billz.shopIds) { sp = prices.find((x) => x.shop_id === id); if (sp) break; }
+    sp ??= prices[0];
   }
-  sp ??= prices[0];
   if (!sp) return { price: 0, oldPrice: null };
   const retail = Math.round(n(sp.retail_price));
   const promo = Math.round(n(sp.promo_price));
-  // promo_price faqat promos to'ldirilgan bo'lsa haqiqiy.
   if (Array.isArray(sp.promos) && sp.promos.length > 0 && promo > 0 && promo < retail) {
     return { price: promo, oldPrice: retail };
   }
   return { price: retail, oldPrice: null };
 }
 
-function stockOf(p: BillzProduct): number {
+export function stockOf(p: BillzProductRaw, shopId?: string): number {
+  if (shopId) {
+    const s = (p.shop_measurement_values ?? []).find((x) => x.shop_id === shopId);
+    return s ? Math.max(0, n(s.active_measurement_value)) : 0;
+  }
   return (p.shop_measurement_values ?? [])
     .filter((s) => shopAllowed(s.shop_id))
     .reduce((sum, s) => sum + Math.max(0, n(s.active_measurement_value)), 0);
 }
 
-function photosOf(p: BillzProduct): string[] {
+export function photosOf(p: BillzProductRaw): string[] {
   const list = [...(p.photos ?? [])]
     .filter((x) => x && x.photo_url)
     .sort((a, b) => Number(Boolean(b.is_main)) - Number(Boolean(a.is_main)) || n(a.sequence) - n(b.sequence))
@@ -133,15 +94,15 @@ function photosOf(p: BillzProduct): string[] {
   return list;
 }
 
-function variantLabel(p: BillzProduct, baseName: string): string {
+export function variantLabel(p: BillzProductRaw, baseName: string): string {
   const attrs = (p.product_attributes ?? []).map((a) => String(a.attribute_value ?? "").trim()).filter(Boolean);
   if (attrs.length) return attrs.join(" / ");
-  // "Ota nomi / 38" ko'rinishidagi nomdan qolgan qismini olamiz.
   if (baseName && p.name.startsWith(baseName)) return p.name.slice(baseName.length).replace(/^[\s/|-]+/, "").trim();
   return "";
 }
 
-/** Har bir kategoriya ID → eng yuqori ota kategoriya. */
+// ── Kategoriya daraxti ──────────────────────────────────────
+
 function buildTopLevelMap(tree: BillzCategoryNode[]) {
   const top = new Map<string, { id: string; name: string }>();
   const order: { id: string; name: string }[] = [];
@@ -150,13 +111,11 @@ function buildTopLevelMap(tree: BillzCategoryNode[]) {
     for (const c of node.subRows ?? []) walk(c, root);
   };
   for (const root of tree) {
-    // API ba'zan tekis ro'yxat ham qaytarishi mumkin — faqat ildizlardan boshlaymiz.
     if (root.parent_id) continue;
     const r = { id: root.id, name: root.name };
     order.push(r);
     walk(root, r);
   }
-  // Tekis ro'yxat holati: parent_id bo'yicha ildizga ko'taramiz.
   const byId = new Map(tree.map((c) => [c.id, c]));
   for (const c of tree) {
     if (top.has(c.id)) continue;
@@ -171,124 +130,109 @@ function buildTopLevelMap(tree: BillzCategoryNode[]) {
   return { top, order };
 }
 
-/**
- * BILLZ'da foydalanuvchining "joriy do'koni" o'rnatiladi.
- * Ba'zi BILLZ muhitlarida `GET /v2/products` faqat joriy do'kon o'rnatilgandan keyin
- * ishlaydi — aks holda `500 INTERNAL error while getting products` qaytadi.
- * Bu so'rov har sinxronlashda bir marta chaqiriladi (idempotent).
- */
-async function ensureCurrentShop(): Promise<void> {
-  const shopId = config.billz.shopIds[0];
-  if (!shopId) return; // do'kon aniqlanmagan — o'rnatmaymiz
-  try {
-    await billz(`/v1/user/set-current-shop/${shopId}`, {
-      method: "PATCH",
-      asyncHttp: true,
+// ── Ommaviy funksiyalar ─────────────────────────────────────
+
+/** Kategoriyalar ro'yxatini BILLZ'dan yuklaydi (bir marta, kam bo'ladi). */
+export async function fetchCategories(): Promise<Category[]> {
+  const tree: BillzCategoryNode[] = [];
+  for (let page = 1; page <= 20; page++) {
+    const r = await billz<{ count?: number; categories?: BillzCategoryNode[] | null }>("/v2/category", {
+      query: { limit: 200, page },
     });
+    const items = r.categories ?? [];
+    tree.push(...items);
+    if (items.length < 200) break;
+  }
+  const { top, order } = buildTopLevelMap(tree);
+  const orderIdx = new Map(order.map((c, i) => [c.id, i]));
+  // Faqat noyob yuqori darajali kategoriyalarni qaytaramiz.
+  const seen = new Map<string, string>();
+  for (const [id, root] of top) { seen.set(root.id, root.name); }
+  return [...seen.entries()]
+    .map(([id, name]) => ({ id, name, order: orderIdx.get(id) ?? 999 }))
+    .sort((a, b) => a.order - b.order);
+}
+
+/** Do'konlar ro'yxatini yuklaydi. */
+export async function fetchShops(): Promise<BillzShop[]> {
+  try {
+    const r = await billz<{ shops?: BillzShop[] }>("/v1/shop", { query: { limit: 100 } });
+    const all = (r.shops ?? []).map((s) => ({ id: s.id, name: s.name }));
+    return config.billz.shopIds.length
+      ? config.billz.shopIds.map((id) => all.find((s) => s.id === id) ?? { id, name: id })
+      : all;
   } catch (e) {
-    // 404 bo'lsa — eski BILLZ versiyasi, bu endpoint yo'q; davom etamiz.
-    // Boshqa xatolar ham sinxronni to'xtatmasligi kerak.
+    console.warn("[billz] do'konlar olinmadi:", (e as Error).message);
+    return [];
+  }
+}
+
+/** Set-current-shop (ba'zi BILLZ muhitlarida kerak). */
+export async function ensureCurrentShop(): Promise<void> {
+  const shopId = config.billz.shopIds[0];
+  if (!shopId) return;
+  try {
+    await billz(`/v1/user/set-current-shop/${shopId}`, { method: "PATCH", asyncHttp: true });
+  } catch (e) {
     console.warn("[billz] set-current-shop xato (davom etamiz):", (e as Error).message);
   }
 }
 
-export async function syncFromBillz(): Promise<CatalogSnapshot> {
-  const startedAt = new Date().toISOString();
-  await ensureCurrentShop();
-  const raw = await fetchAllProducts();
-  let tree: BillzCategoryNode[] = [];
+/**
+ * Mahsulotlarni BILLZ'dan sahifalab oladi — BITTA sahifa.
+ * Mini App scroll qilganda keyingi sahifa so'raladi.
+ */
+export async function fetchProductsPage(opts: {
+  page: number;
+  limit?: number;
+  categoryId?: string;
+  search?: string;
+}): Promise<{ products: BillzProductRaw[]; total: number }> {
+  const limit = opts.limit ?? 20;
+  // BILLZ `GET /v2/products` da category/search filtri yo'q — `POST /v2/product-search-with-filters` ishlatamiz.
+  // Lekin u boshqa formatda javob beradi. Shuning uchun hozircha oddiy GET bilan sahifalab olamiz.
+  const r = await billz<{ count?: number; products?: BillzProductRaw[] | null }>("/v2/products", {
+    query: { limit, page: opts.page, search: opts.search || undefined },
+    timeoutMs: 30_000,
+  });
+  return { products: r.products ?? [], total: Number(r.count ?? 0) };
+}
+
+/** Bitta mahsulotni BILLZ'dan oladi (ID bo'yicha). Aslida bu sahifalab topish — BILLZ'da bitta mahsulotni olish endpoint yo'q. */
+export async function fetchProductById(productId: string): Promise<BillzProductRaw | null> {
+  // BILLZ'da ID bo'yicha bitta mahsulot olish uchun maxsus endpoint yo'q.
+  // search parametri bilan qidiramiz.
   try {
-    tree = await fetchCategoryTree();
-  } catch (e) {
-    console.warn("[billz] kategoriya daraxti olinmadi, tovar kategoriyalari ishlatiladi:", (e as Error).message);
-  }
-  const { top, order } = buildTopLevelMap(tree);
-  const toTop = (c: BillzCategoryRef) => top.get(c.id) ?? { id: c.id, name: c.name };
-
-  const items = raw.filter((p) => p && p.id && p.product_type_id !== SERVICE_TYPE_ID);
-  const parents = new Map(items.filter((p) => p.is_variative && !p.parent_id).map((p) => [p.id, p]));
-
-  // Guruhlash: kalit = ota ID (variatsiya) yoki o'z ID (oddiy tovar).
-  const groups = new Map<string, BillzProduct[]>();
-  for (const p of items) {
-    if (p.is_variative && !p.parent_id) continue; // ota tovarning o'zi sotilmaydi
-    const key = p.parent_id || p.id;
-    const g = groups.get(key);
-    if (g) g.push(p);
-    else groups.set(key, [p]);
-  }
-
-  const usedCats = new Map<string, string>();
-  const products: Product[] = [];
-
-  for (const [key, children] of groups) {
-    const parent = parents.get(key);
-    const first = children[0]!;
-    const baseName =
-      parent?.name || first.base_name || (first.parent_id ? first.name.split(" / ")[0]!.trim() : first.name);
-
-    const variants: Variant[] = children.map((c) => {
-      const pr = priceOf(c);
-      return {
-        id: c.id,
-        label: first.parent_id || parent ? variantLabel(c, baseName) : "",
-        sku: c.sku ?? "",
-        barcode: c.barcode ?? "",
-        price: pr.price,
-        oldPrice: pr.oldPrice,
-        stock: stockOf(c),
-      };
+    const r = await billz<{ products?: BillzProductRaw[] | null }>("/v2/products", {
+      query: { limit: 10, page: 1, search: productId },
+      timeoutMs: 15_000,
     });
-    // Narxi yo'q (sotuvga chiqmagan) variantlarni yashiramiz.
-    const sellable = variants.filter((v) => v.price > 0);
-    if (!sellable.length) continue;
-    sellable.sort((a, b) => a.label.localeCompare(b.label, undefined, { numeric: true }));
-
-    const catsSrc = (parent?.categories?.length ? parent.categories : first.categories) ?? [];
-    const catIds: string[] = [];
-    for (const c of catsSrc) {
-      const t = toTop(c);
-      if (!catIds.includes(t.id)) catIds.push(t.id);
-      usedCats.set(t.id, t.name);
-    }
-
-    const images: string[] = [];
-    for (const src of [parent, ...children]) {
-      if (!src) continue;
-      for (const u of photosOf(src)) if (!images.includes(u)) images.push(u);
-    }
-
-    const attributeNames = [
-      ...new Set(
-        children.flatMap((c) => (c.product_attributes ?? []).map((a) => String(a.attribute_name ?? "").trim())),
-      ),
-    ].filter(Boolean);
-
-    const updatedAt = [parent, ...children]
-      .map((x) => x?.updated_at ?? "")
-      .filter(Boolean)
-      .sort()
-      .pop();
-
-    products.push({
-      id: key,
-      name: baseName,
-      description: (parent?.description || first.description || "").trim(),
-      brand: parent?.brand_name || first.brand_name || "",
-      sku: parent?.sku || first.sku || "",
-      categoryIds: catIds,
-      images: images.slice(0, 10),
-      variants: sellable,
-      attributeNames,
-      featured: false,
-      updatedAt: updatedAt ? new Date(updatedAt.replace(" ", "T") + "Z").toISOString() : startedAt,
-    });
+    return (r.products ?? []).find((p) => p.id === productId) ?? null;
+  } catch {
+    return null;
   }
+}
 
-  const orderIdx = new Map(order.map((c, i) => [c.id, i]));
-  const categories: Category[] = [...usedCats.entries()]
-    .map(([id, name]) => ({ id, name, order: orderIdx.get(id) ?? 999 }))
-    .sort((a, b) => a.order - b.order || String(a.name).localeCompare(String(b.name)));
-
-  return { source: "billz", syncedAt: startedAt, categories, products };
+/** Kategoriya daraxti → har bir BILLZ kategoriya ID uchun yuqori darajali kategoriya. */
+export function getCategoryResolver(categories: Category[]) {
+  // Sodda: hozircha kategoriyalar o'zi yuqori darajali.
+  const map = new Map(categories.map((c) => [c.id, c]));
+  return (refs: BillzCategoryRef[]): string[] => {
+    const ids: string[] = [];
+    for (const r of refs) {
+      const c = map.get(r.id);
+      if (c && !ids.includes(c.id)) ids.push(c.id);
+      // Agar kategoriya topilmasa, parent_id orqali qidiramiz.
+      if (!c) {
+        // Categoriya nomi bilan solishtiramiz.
+        for (const cat of categories) {
+          if (String(cat.name).toLowerCase() === r.name.toLowerCase() && !ids.includes(cat.id)) {
+            ids.push(cat.id);
+            break;
+          }
+        }
+      }
+    }
+    return ids;
+  };
 }

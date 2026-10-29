@@ -8,8 +8,8 @@ import {
   getProductDetail,
   listCategories,
   listProducts,
+  listShops,
   resolveImageKey,
-  type Sort,
 } from "./catalog/index.js";
 import { createOrder, OrderError, serializeOrder, type OrderInput } from "./orders.js";
 import { bots } from "./telegram.js";
@@ -163,18 +163,28 @@ export async function registerApi(app: FastifyInstance) {
     }
   });
 
+  app.get("/api/shops", async () => listShops());
+
   app.get("/api/categories", async (req) => listCategories(langOf(req)));
 
   app.get("/api/products", async (req) => {
     const q = req.query as Record<string, string | undefined>;
+    const page = Math.max(1, Number(q.page) || 1);
+    const limit = Math.min(50, Math.max(1, Number(q.limit) || 20));
     const ids = (q.ids ?? "").split(",").map((x) => x.trim()).filter(Boolean).slice(0, 200);
-    const sort = (["popular", "new", "cheap", "expensive"].includes(q.sort ?? "") ? q.sort : "popular") as Sort;
-    return listProducts({ category: q.category || undefined, q: q.q?.slice(0, 100), sort, ids }, langOf(req));
+    return listProducts({
+      page, limit,
+      category: q.category || undefined,
+      q: q.q?.slice(0, 100),
+      shopId: (q.shop ?? "").trim() || undefined,
+      ids,
+    }, langOf(req));
   });
 
   app.get("/api/products/:id", async (req, reply) => {
     const { id } = req.params as { id: string };
-    const p = getProductDetail(id, langOf(req));
+    const shop = ((req.query as Record<string, string | undefined>).shop ?? "").trim() || undefined;
+    const p = await getProductDetail(id, langOf(req), shop);
     if (!p) return reply.code(404).send({ detail: "Mahsulot topilmadi" });
     return p;
   });
