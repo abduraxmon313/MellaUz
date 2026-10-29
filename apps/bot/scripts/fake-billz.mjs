@@ -29,6 +29,8 @@ const products = [
   { id: "V-HEEL-36", name: "Samarqand tufli / 36", parent_id: "P-HEEL", sku: "MF-1001-36", product_attributes: [{ attribute_name: "Размер", attribute_value: "36" }], shop_prices: prices(890000, 712000), shop_measurement_values: stock(0, 0), product_type_id: SIMPLE, updated_at: "2026-10-05 10:00:00" },
   { id: "V-HEEL-40", name: "Samarqand tufli / 40", parent_id: "P-HEEL", sku: "MF-1001-40", product_attributes: [{ attribute_name: "Размер", attribute_value: "40" }], shop_prices: prices(890000, 712000), shop_measurement_values: stock(1, 0), product_type_id: SIMPLE, updated_at: "2026-10-05 10:00:00" },
   { id: "P-BAG", name: "Registon tote", sku: "MB-2001", brand_name: "MELLA", description: "Charm sumka", categories: [{ id: CAT_BAGS, name: "Сумки", parent_id: "" }], main_image_url: IMG("bag"), photos: [{ photo_url: IMG("bag"), is_main: true }], shop_prices: prices(1290000), shop_measurement_values: stock(3, 2), product_type_id: SIMPLE, updated_at: "2026-10-03 10:00:00" },
+  { id: "MZ-38", name: "Magza 284", sku: "MZ284-38", categories: [{ id: CAT_HEELS, name: "Tufli", parent_id: CAT_SHOES }], product_attributes: [{ attribute_name: "Размер", attribute_value: "38" }], photos: [{ photo_url: IMG("mz"), is_main: true }], shop_prices: prices(2340000), shop_measurement_values: stock(1, 0), product_type_id: SIMPLE, updated_at: "2026-10-06 10:00:00" },
+  { id: "MZ-39", name: "Magza 284", sku: "MZ284-39", categories: [{ id: CAT_HEELS, name: "Tufli", parent_id: CAT_SHOES }], product_attributes: [{ attribute_name: "Размер", attribute_value: "39" }], shop_prices: prices(2340000), shop_measurement_values: stock(0, 2), product_type_id: SIMPLE, updated_at: "2026-10-06 10:00:00" },
   { id: "P-NOPRICE", name: "Narxsiz", categories: [{ id: CAT_BAGS, name: "Сумки" }], shop_prices: [], shop_measurement_values: stock(5, 0), product_type_id: SIMPLE },
   { id: "P-SERVICE", name: "Qadoqlash xizmati", shop_prices: prices(10000), product_type_id: "5a0e556a-15f8-47ac-ae07-46972f3c6ab4" },
 ];
@@ -36,6 +38,8 @@ const products = [
 const tree = [
   { id: CAT_SHOES, name: "Обувь", parent_id: "", subRows: [{ id: CAT_HEELS, name: "Tufli", parent_id: CAT_SHOES, subRows: [] }] },
   { id: CAT_BAGS, name: "Сумки", parent_id: "", subRows: [] },
+  { id: "junk-1", name: "2", parent_id: "", subRows: [] },
+  { id: "junk-2", name: "qora", parent_id: "", subRows: [] },
 ];
 
 function send(res, code, body) { res.writeHead(code, { "content-type": "application/json" }); res.end(JSON.stringify(body)); }
@@ -45,6 +49,12 @@ http.createServer(async (req, res) => {
   let body = "";
   for await (const ch of req) body += ch;
   if (url.pathname === "/_calls") return send(res, 200, calls);
+  if (url.pathname === "/_bump") {
+    const p = products.find((x) => x.id === "P-BAG");
+    p.shop_prices = prices(1190000);
+    p.updated_at = "2099-01-01 00:00:00";
+    return send(res, 200, { ok: true });
+  }
   calls.push(`${req.method} ${url.pathname}${url.search}${req.headers["billz-response-channel"] ? " [HTTP]" : ""} ${body.slice(0, 140)}`);
   if (url.pathname.startsWith("/cdn/")) { res.writeHead(200, { "content-type": "image/jpeg" }); return res.end(Buffer.from("FAKEJPEG-" + url.pathname)); }
   if (url.pathname === "/v1/auth/login") {
@@ -57,7 +67,9 @@ http.createServer(async (req, res) => {
   if (url.pathname === "/v2/products") {
     if (page429) { page429 = false; return send(res, 429, { message: "too many" }); }
     const limit = Number(url.searchParams.get("limit")), page = Number(url.searchParams.get("page"));
-    return send(res, 200, { count: products.length, products: products.slice((page - 1) * limit, page * limit) });
+    const since = url.searchParams.get("last_updated_date");
+    const list = since ? products.filter((p) => (p.updated_at || "") >= since) : products;
+    return send(res, 200, { count: list.length, products: list.slice((page - 1) * limit, page * limit) });
   }
   if (url.pathname === "/v2/category") return send(res, 200, { count: 2, categories: tree });
   if (url.pathname === "/v1/shop") return send(res, 200, { count: 2, shops: [{ id: SHOP_A, name: "Mella Chilonzor" }, { id: SHOP_B, name: "Mella Online" }] });
