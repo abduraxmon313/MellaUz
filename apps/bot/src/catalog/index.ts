@@ -7,6 +7,7 @@ import {
   fetchCategoryTree,
   fetchShops,
   fetchUpdatedSince,
+  fetchByCode,
   type BillzShop,
   type SlimProduct,
 } from "../billz/catalog.js";
@@ -228,28 +229,92 @@ export interface ShopStockRow {
   stock: number;
   /** BILLZ_SHOP_IDS'ga kiradi — Mini App qoldig'iga qo'shiladi. */
   counted: boolean;
+  /** Shu filialdagi o'lchamlar (qoldig'i borlari). */
+  sizes: { label: string; stock: number }[];
+}
+
+export interface BillzStockReport {
+  /** true — ma'lumot hozirgina BILLZ API'dan olindi; false — oxirgi sinxron nusxasi. */
+  live: boolean;
+  error: string;
+  /** BILLZ'dagi umumiy qoldiq (barcha filiallar). */
+  total: number;
+  /** Mini App ko'rsatadigan qoldiq (BILLZ_SHOP_IDS filiallari). */
+  counted: number;
+  rows: ShopStockRow[];
+  /** O'lchamlar bo'yicha umumiy qoldiq (BILLZ_SHOP_IDS filiallari). */
+  sizes: { label: string; stock: number }[];
 }
 
 /**
- * Admin bot: mahsulotning BARCHA filiallardagi qoldig'i (BILLZ xom ma'lumotidan),
- * jumladan Mini App hisoblamaydigan filiallar — "Tugagan" sababini ko'rish uchun.
+ * Admin bot: mahsulot qoldig'ini BILLZ'dan JONLI so'raydi (SKU / shtrix-kod bo'yicha) va
+ * filiallar kesimida qaytaradi. Olingan ma'lumot indeksga ham yoziladi — Mini App darhol yangilanadi.
+ * BILLZ javob bermasa — oxirgi sinxron nusxasi ko'rsatiladi (`live: false`).
  */
-export function stockByShop(p: Product): ShopStockRow[] {
-  const sum = new Map<string, number>();
-  for (const v of p.variants) {
-    const r = raw.get(v.id);
-    if (!r) continue;
-    for (const [shopId, n] of Object.entries(r.stocks)) sum.set(shopId, (sum.get(shopId) ?? 0) + n);
+export async function billzStock(productId: string): Promise<BillzStockReport | null> {
+  const p0 = getBaseProduct(productId);
+  if (!p0) return null;
+  const ids = new Set(p0.variants.map((v) => v.id));
+  const fresh = new Map<string, SlimProduct>();
+  let error = "";
+
+  if (hasBillz) {
+    try {
+      const first = p0.sku || p0.variants.find((v) => v.sku)?.sku || p0.variants.find((v) => v.barcode)?.barcode || "";
+      if (first) for (const it of await fetchByCode(first)) if (ids.has(it.id)) fresh.set(it.id, it);
+      // SKU bo'yicha topilmagan variantlar — shtrix-kodi bo'yicha (ko'pi bilan 10 ta so'rov).
+      const missing = p0.variants.filter((v) => !fresh.has(v.id) && v.barcode).slice(0, 10);
+      for (const v of missing) for (const it of await fetchByCode(v.barcode)) if (ids.has(it.id)) fresh.set(it.id, it);
+    } catch (e) {
+      error = (e as Error).message;
+      console.warn("[catalog] BILLZ jonli qoldiq olinmadi:", error);
+    }
   }
-  for (const s of shops) if (!sum.has(s.id)) sum.set(s.id, 0);
-  return [...sum.entries()]
-    .map(([shopId, stock]) => ({
+
+  // Indeksni yangilaymiz (to'liq yuklash tugagan bo'lsa — aks holda yarim katalog bilan qayta qurib bo'lmaydi).
+  if (fresh.size && raw.size && !fullRunning) {
+    for (const it of fresh.values()) raw.set(it.id, it);
+    applyBillz([...raw.values()]);
+  }
+  const p = getBaseProduct(productId) ?? p0;
+
+  const perShop = new Map<string, { stock: number; sizes: { label: string; stock: number }[] }>();
+  for (const s of shops) perShop.set(s.id, { stock: 0, sizes: [] });
+  const sizes: { label: string; stock: number }[] = [];
+  for (const v of p.variants) {
+    const src = fresh.get(v.id) ?? raw.get(v.id);
+    const stocks: Record<string, number> = src
+      ? src.stocks
+      : Object.fromEntries((v.shopStocks ?? []).map((s) => [s.shopId, s.stock]));
+    sizes.push({
+      label: v.label,
+      stock: Object.entries(stocks).reduce((s, [shopId, n]) => (allowedShop(shopId) ? s + n : s), 0),
+    });
+    for (const [shopId, n] of Object.entries(stocks)) {
+      const row = perShop.get(shopId) ?? { stock: 0, sizes: [] };
+      row.stock += n;
+      if (n > 0) row.sizes.push({ label: v.label, stock: n });
+      perShop.set(shopId, row);
+    }
+  }
+  const rows: ShopStockRow[] = [...perShop.entries()]
+    .map(([shopId, r]) => ({
       shopId,
       name: shops.find((s) => s.id === shopId && s.name !== s.id)?.name || billzShopName(shopId) || shopId,
-      stock,
+      stock: r.stock,
       counted: allowedShop(shopId),
+      sizes: r.sizes,
     }))
     .sort((a, b) => Number(b.counted) - Number(a.counted) || b.stock - a.stock);
+
+  return {
+    live: fresh.size > 0,
+    error,
+    total: rows.reduce((s, r) => s + r.stock, 0),
+    counted: rows.reduce((s, r) => (r.counted ? s + r.stock : s), 0),
+    rows,
+    sizes,
+  };
 }
 
 // ── Ko'rinishni qayta qurish ────────────────────────────────

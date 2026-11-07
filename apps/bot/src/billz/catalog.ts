@@ -208,6 +208,24 @@ export async function fetchUpdatedSince(since: Date): Promise<SlimProduct[]> {
   return out;
 }
 
+/**
+ * Jonli so'rov: SKU yoki shtrix-kod bo'yicha BILLZ'dan hozirgi holat (qoldig'i 0 bo'lganlar ham).
+ * Admin bot mahsulot kartasi uchun — indeks yangilanishini kutmasdan aniq qoldiq.
+ */
+export async function fetchByCode(code: string): Promise<SlimProduct[]> {
+  const out: SlimProduct[] = [];
+  for (let page = 1; page <= 5; page++) {
+    const r = await billz<{ products?: BillzProductRaw[] | null }>("/v2/products", {
+      query: { limit: 100, page, search: code.slice(0, 100), fields: "sku,barcode", include_empty_stocks: "true" },
+      timeoutMs: 30_000,
+    });
+    const items = (r.products ?? []).filter((p) => p && p.id);
+    for (const p of items) out.push(slim(p));
+    if (items.length < 100) break;
+  }
+  return out;
+}
+
 export async function fetchCategoryTree(): Promise<BillzCategoryNode[]> {
   const out: BillzCategoryNode[] = [];
   for (let page = 1; page <= 20; page++) {

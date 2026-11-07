@@ -82,6 +82,9 @@ http.createServer(async (req, res) => {
     const limit = Number(url.searchParams.get("limit")), page = Number(url.searchParams.get("page"));
     const since = url.searchParams.get("last_updated_date");
     let list = since ? products.filter((p) => (p.updated_at || "") >= since) : products;
+    // search — SKU / shtrix-kod bo'yicha qism-satr (fields=sku,barcode), registrga qaramaydi.
+    const search = (url.searchParams.get("search") || "").toLowerCase();
+    if (search) list = list.filter((p) => [p.sku, p.barcode].some((x) => String(x || "").toLowerCase().includes(search)));
     // Haqiqiy BILLZ kabi: include_empty_stocks=true bo'lmasa, qoldig'i 0 tovarlar o'zgarishlarda kelmaydi.
     if (since && url.searchParams.get("include_empty_stocks") !== "true") {
       list = list.filter((p) => (p.shop_measurement_values ?? []).some((s) => s.active_measurement_value > 0));
