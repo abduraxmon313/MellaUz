@@ -52,10 +52,3 @@ export interface Category {
   name: Localized;
   order: number;
 }
-
-export interface CatalogSnapshot {
-  source: "billz" | "mock";
-  syncedAt: string;
-  categories: Category[];
-  products: Product[];
-}

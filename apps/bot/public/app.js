@@ -367,9 +367,9 @@ async function refreshCart() {
 function renderHero() {
   const wrap = el('heroWrap'); if (!wrap) return;
   const withImg = State.products.find((p) => p.image && p.in_stock) || State.products.find((p) => p.image);
-  const img = withImg ? withImg.image : '/images/products/samarqand-1.jpg';
+  const img = withImg ? withImg.image : '';
   wrap.innerHTML = `<div class="hero grain">
-      <div class="hero-img">${imgHtml(img, true)}</div>
+      ${img ? `<div class="hero-img">${imgHtml(img, true)}</div>` : ''}
       <div class="hero-body">
         <span class="hero-eyebrow">${L('hero_eyebrow')}</span>
         <h2 class="hero-title">${L('hero_title')}</h2>
@@ -1049,6 +1049,8 @@ async function loadProducts() {
     State.hasMore = r.has_more ?? false;
     State.total = typeof r.total === 'number' ? r.total : State.products.length;
     renderProducts();
+    // Bosh banner rasmi — birinchi mavjud mahsulotdan (bir marta).
+    if (!State._heroSet && State.products.some((p) => p.image)) { State._heroSet = true; renderHero(); }
     // Server katalogni hali yuklayotgan bo'lsa (birinchi ishga tushish) — birozdan keyin yangilaymiz.
     clearTimeout(loadProducts._t);
     if (r.loading && State.productsPage === 1) loadProducts._t = setTimeout(() => { if (State.view === 'home' && State.productsPage === 1) loadProducts(); }, 8000);

@@ -2,7 +2,15 @@ import { createHash } from "node:crypto";
 import { Composer, InlineKeyboard, InputFile, type Context } from "grammy";
 import { config, hasBillz, hasOpenAI } from "../config.js";
 import { LISTING_MAX_IMAGES, store } from "../store.js";
-import { catalogStatus, findByCode, getBaseProduct, listingFor, loc, refreshListings } from "../catalog/index.js";
+import {
+  catalogStatus,
+  findByCode,
+  getBaseProduct,
+  listingFor,
+  loc,
+  refreshListings,
+  stockByShop,
+} from "../catalog/index.js";
 import type { Product } from "../catalog/types.js";
 import { AiImageError, cleanProductPhoto } from "../ai/image.js";
 import { esc, money } from "../util.js";
@@ -66,11 +74,27 @@ function productText(p: Product): string {
     p.brand ? `Brend: ${esc(p.brand)}` : "",
     `Narx: <b>${min === max ? money(min) : `${money(min)} – ${money(max)}`}</b>`,
     sizes ? `O‘lchamlar: ${sizes}` : "",
-    `Qoldiq: ${stock}`,
+    `Mini App qoldig‘i: <b>${stock}</b>${stock > 0 ? "" : " — «Tugagan» ko‘rinadi"}`,
+    shopStockText(p, stock),
   ]
     .filter(Boolean)
     .join("\n")
     .concat(`\n\nHolat: ${status}`);
+}
+
+/** Filiallar kesimida qoldiq. Mini App hisoblamaydigan filialda tovar bo'lsa — ogohlantiramiz. */
+function shopStockText(p: Product, counted: number): string {
+  const rows = stockByShop(p);
+  if (!rows.length) return "";
+  const lines = rows
+    .slice(0, 12)
+    .map((r) => `${r.counted ? "•" : "◦"} ${esc(r.name)}: ${r.stock}${r.counted ? "" : " <i>(Mini App’da hisoblanmaydi)</i>"}`);
+  const hidden = rows.filter((r) => !r.counted).reduce((s, r) => s + r.stock, 0);
+  const warn =
+    counted === 0 && hidden > 0
+      ? "\n⚠️ Tovar BILLZ_SHOP_IDS’ga kirmagan filialda turibdi. Mini App’da ko‘rinishi uchun o‘sha filial ID’sini (/billz) BILLZ_SHOP_IDS’ga qo‘shing."
+      : "";
+  return `Filiallar bo‘yicha:\n${lines.join("\n")}${warn}`;
 }
 
 function productKeyboard(p: Product) {
