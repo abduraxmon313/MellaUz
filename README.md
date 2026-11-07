@@ -75,7 +75,24 @@ Buyurtma holati o‘zgarsa mijozga xabar boradi.
 
 **Admin bot:** yangi buyurtma kartasi barcha adminlarga keladi; tugmalar bilan
 Qabul → Qadoqlanmoqda → Yo‘lda → Yetkazildi (yoki sabab bilan rad/bekor). Karta hamma
-adminlarda birdan yangilanadi. Buyruqlar: `/orders`, `/new`, `/today`, `/sync`, `/billz`.
+adminlarda birdan yangilanadi. Buyruqlar: `/add`, `/orders`, `/new`, `/today`, `/sync`, `/billz`.
+
+**Admin bot — mahsulot qo‘shish (BILLZ + AI rasm).** BILLZ’da 20 000+ tovar bor, rasmlari yo‘q.
+Shuning uchun Mini App’da **faqat admin tasdiqlagan** BILLZ mahsulotlari ko‘rinadi:
+
+1. «➕ Mahsulot qo‘shish» (yoki `/add`) → BILLZ kodini yuboring: **artikul (SKU)**, **shtrix-kod**
+   yoki nomi (nomi bo‘yicha topilsa — ro‘yxatdan tanlanadi). Istalgan vaqtda kodni shunchaki yozish ham kifoya.
+2. Bot mahsulotni (narx, o‘lchamlar, qoldiq) ko‘rsatadi va rasm so‘raydi. Rasm izohiga kod yozib yuborish ham mumkin.
+3. Rasm `OPENAI_API_KEY` orqali OpenAI’ga (Images API, `/v1/images/edits`) maxsus prompt bilan yuboriladi:
+   fon va ortiqcha narsalar olib tashlanadi, mahsulot och studiya fonida, 4:5 formatda qaytadi.
+4. Natija: **✅ Tasdiqlash** · **🔁 Qayta ishlash** · **📷 Asl rasm** (AI’siz) · **❌ Bekor qilish**.
+5. Tasdiqlangach rasm bazaga yoziladi va mahsulot **darhol Mini App’da** chiqadi (narx/qoldiq BILLZ’dan).
+   Yana rasm yuborilsa — galereyaga qo‘shiladi (10 tagacha). Kodni qayta yuborib mahsulotni
+   **yashirish / qayta ko‘rsatish** yoki **rasmlarini o‘chirish** mumkin.
+
+Jadvallar avtomatik yaratiladi: `billz_listings`, `billz_listing_images`. Eski xatti-harakat
+(barcha BILLZ mahsulotlari ko‘rinadi) kerak bo‘lsa: `BILLZ_REQUIRE_APPROVAL=false`.
+Bu oqim faqat alohida admin botda (`BOT_ADMIN_TOKEN`) ishlaydi.
 
 **BILLZ:** katalog `GET /v2/products` dan har `BILLZ_SYNC_MINUTES` da yangilanadi
 (variatsiyalar → bitta karta + o‘lchamlar, aksiya narxi, do‘kon kesimidagi qoldiq,
@@ -114,6 +131,7 @@ alohida service** tayyorlaydi.
    ikkala webhook va Mini App menyu tugmasi avtomatik o‘rnatiladi. Adminlar admin botga
    `/start` yozib ID'sini oladi → `ADMIN_IDS` ga qo‘shiladi. BILLZ uchun `BILLZ_SECRET_TOKEN`
    qo‘ying, admin botda `/billz` bilan do‘kon ID'larini olib `BILLZ_SHOP_IDS` ga yozing.
+7. **AI rasm**: `mella-bot` service’iga `OPENAI_API_KEY` qo‘ying (OpenAI hisobida balans bo‘lishi kerak).
 
 > **Eslatma (monorepo):** service **Root Directory** bo‘sh (repo ildizi) bo‘lishi
 > kerak — shunda `pnpm-lock.yaml` va workspace to‘liq ko‘rinadi. Build/start

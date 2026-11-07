@@ -7,6 +7,7 @@ import { catalogStatus, syncNow } from "../catalog/index.js";
 import { billzPing } from "../billz/client.js";
 import { esc, money, tashkentDate } from "../util.js";
 import { ADMIN_STATUS, CANCEL_REASONS, orderCardKeyboard, orderCardText, reasonKeyboard } from "./card.js";
+import { BTN_ADD, productComposer } from "./products.js";
 
 /**
  * Admin bot — buyurtmalarni boshqarish.
@@ -30,7 +31,16 @@ const pendingReason = new Map<number, { orderId: number; status: OrderStatus }>(
 const isAdmin = (id: number | undefined) => Boolean(id && config.adminIds.includes(id));
 
 function adminMenu() {
-  return new Keyboard().text(BTN_ACTIVE).text(BTN_NEW).row().text(BTN_TODAY).text(BTN_SYNC).resized().persistent();
+  return new Keyboard()
+    .text(BTN_ADD)
+    .row()
+    .text(BTN_ACTIVE)
+    .text(BTN_NEW)
+    .row()
+    .text(BTN_TODAY)
+    .text(BTN_SYNC)
+    .resized()
+    .persistent();
 }
 
 function parseStatus(s: string | undefined): OrderStatus | null {
@@ -95,7 +105,9 @@ async function syncReport(ctx: Context) {
         [
           s.lastError ? "⚠️ <b>Xato bilan yakunlandi</b>" : "✅ <b>Katalog yangilandi</b>",
           `Manba: ${s.source}`,
-          `Mahsulot kartalari: ${s.products}`,
+          s.requireApproval
+            ? `BILLZ kartalari: ${s.billzTotal}\nMini App’da (tasdiqlangan): ${s.approvedProducts}`
+            : `Mahsulot kartalari: ${s.products}`,
           `Kategoriyalar: ${s.categories}`,
           `Filiallar: ${s.shops}`,
           `Oxirgi sinxron: ${tashkentDate(s.syncedAt)}`,
@@ -208,7 +220,7 @@ export function createAdminBot(): Bot | null {
 
   bot.command("start", async (ctx) => {
     await ctx.reply(
-      `👋 Salom, ${esc(ctx.from?.first_name ?? "")}! MELLA admin paneli.\n\nYangi buyurtmalar shu yerga keladi. Tugmalar orqali holatini o‘zgartiring — mijozga avtomatik xabar boradi.`,
+      `👋 Salom, ${esc(ctx.from?.first_name ?? "")}! MELLA admin paneli.\n\nYangi buyurtmalar shu yerga keladi. Tugmalar orqali holatini o‘zgartiring — mijozga avtomatik xabar boradi.\n\n${BTN_ADD}: BILLZ kodini yuboring → rasm yuboring → AI fonini tozalaydi → tasdiqlang, mahsulot Mini App’da chiqadi.`,
       { parse_mode: "HTML", reply_markup: adminMenu() },
     );
   });
@@ -240,6 +252,9 @@ export function createAdminBot(): Bot | null {
   bot.hears(BTN_TODAY, todayReport);
   bot.hears(BTN_SYNC, syncReport);
 
+  // Mahsulot qo'shish (BILLZ kodi → rasm → AI → tasdiqlash). Oxirida: qolgan matn/rasmlarni ushlaydi.
+  bot.use(productComposer());
+
   bot.catch((err) => console.error("[admin-bot] xato:", err.error));
   return bot;
 }
@@ -251,6 +266,7 @@ export async function setupAdminWebhook(bot: Bot) {
   console.log("[admin-bot] webhook o'rnatildi:", url);
   await bot.api
     .setMyCommands([
+      { command: "add", description: "Mahsulot qo‘shish (BILLZ kodi + rasm)" },
       { command: "orders", description: "Faol buyurtmalar" },
       { command: "new", description: "Yangi buyurtmalar" },
       { command: "today", description: "Bugungi hisobot" },
