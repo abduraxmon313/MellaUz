@@ -103,8 +103,9 @@ bo‘lsa, yetkazilgan buyurtma BILLZ'ga sotuv sifatida o‘tkaziladi.
 **Qoldiq yangilanishi.** BILLZ’da sotuv bo‘lsa, qoldiq keyingi o‘zgarishlar sinxronida
 (`BILLZ_SYNC_MINUTES`, sukut 5 daqiqa) Mini App’ga tushadi — oxirgi dona sotilganda ham
 (`include_empty_stocks=true`). Mini App qoldig‘i faqat `BILLZ_SHOP_IDS` filiallari bo‘yicha hisoblanadi.
-Admin botda mahsulot kodi yuborilsa, **filiallar bo‘yicha qoldiq** ko‘rinadi; tovar ro‘yxatga kirmagan
-filialda bo‘lsa (Mini App’da «Tugagan»), bot ogohlantiradi.
+Admin botda mahsulot kodi yuborilsa, qoldiq **BILLZ’dan jonli** so‘raladi (`GET /v2/products?search=<SKU>`)
+va **har filialda qaysi o‘lchamdan nechta** borligi ko‘rsatiladi. Olingan qoldiq Mini App’ga ham darhol
+yoziladi. Tovar ro‘yxatga kirmagan filialda bo‘lsa (Mini App’da «Tugagan»), bot ogohlantiradi.
 
 Sozlash: `.env.example` dagi `mella-bot` bo‘limi. Lokal sinov:
 

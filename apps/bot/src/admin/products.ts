@@ -9,7 +9,8 @@ import {
   listingFor,
   loc,
   refreshListings,
-  stockByShop,
+  billzStock,
+  type BillzStockReport,
 } from "../catalog/index.js";
 import type { Product } from "../catalog/types.js";
 import { AiImageError, cleanProductPhoto } from "../ai/image.js";
@@ -50,16 +51,19 @@ const safetyId = (adminId: number) => createHash("sha256").update(`mella-admin:$
 
 // ── Ko'rinish ───────────────────────────────────────────────
 
-function productText(p: Product): string {
+/** Mahsulot kartasi. Qoldiq BILLZ'dan jonli olinadi (va Mini App indeksi ham shu bilan yangilanadi). */
+async function productText(p0: Product): Promise<string> {
+  const rep = await billzStock(p0.id);
+  const p = getBaseProduct(p0.id) ?? p0;
   const l = listingFor(p);
   const prices = p.variants.map((v) => v.price).filter((x) => x > 0);
   const min = prices.length ? Math.min(...prices) : 0;
   const max = prices.length ? Math.max(...prices) : 0;
-  const stock = p.variants.reduce((s, v) => s + v.stock, 0);
-  const sizes = p.variants
+  const sizeList = rep?.sizes ?? p.variants.map((v) => ({ label: v.label, stock: v.stock }));
+  const sizes = sizeList
     .filter((v) => v.label)
     .slice(0, 25)
-    .map((v) => `${esc(v.label)}${v.stock > 0 ? ` (${v.stock})` : " (0)"}`)
+    .map((v) => `${esc(v.label)} (${v.stock})`)
     .join(", ");
   const status = !l
     ? "⏳ Mini App’da hali yo‘q"
@@ -73,28 +77,39 @@ function productText(p: Product): string {
     p.sku ? `Artikul: <code>${esc(p.sku)}</code>` : "",
     p.brand ? `Brend: ${esc(p.brand)}` : "",
     `Narx: <b>${min === max ? money(min) : `${money(min)} – ${money(max)}`}</b>`,
-    sizes ? `O‘lchamlar: ${sizes}` : "",
-    `Mini App qoldig‘i: <b>${stock}</b>${stock > 0 ? "" : " — «Tugagan» ko‘rinadi"}`,
-    shopStockText(p, stock),
+    sizes ? `O‘lchamlar (dona): ${sizes}` : "",
+    rep ? stockText(rep) : "",
   ]
     .filter(Boolean)
     .join("\n")
     .concat(`\n\nHolat: ${status}`);
 }
 
-/** Filiallar kesimida qoldiq. Mini App hisoblamaydigan filialda tovar bo'lsa — ogohlantiramiz. */
-function shopStockText(p: Product, counted: number): string {
-  const rows = stockByShop(p);
-  if (!rows.length) return "";
-  const lines = rows
-    .slice(0, 12)
-    .map((r) => `${r.counted ? "•" : "◦"} ${esc(r.name)}: ${r.stock}${r.counted ? "" : " <i>(Mini App’da hisoblanmaydi)</i>"}`);
-  const hidden = rows.filter((r) => !r.counted).reduce((s, r) => s + r.stock, 0);
-  const warn =
-    counted === 0 && hidden > 0
-      ? "\n⚠️ Tovar BILLZ_SHOP_IDS’ga kirmagan filialda turibdi. Mini App’da ko‘rinishi uchun o‘sha filial ID’sini (/billz) BILLZ_SHOP_IDS’ga qo‘shing."
-      : "";
-  return `Filiallar bo‘yicha:\n${lines.join("\n")}${warn}`;
+/** BILLZ qoldig'i filiallar kesimida (har filialda qaysi o'lchamdan nechta). */
+function stockText(rep: BillzStockReport): string {
+  const src = rep.live
+    ? "BILLZ’dan hozir olindi"
+    : `⚠️ BILLZ’dan jonli olib bo‘lmadi${rep.error ? ` (${esc(rep.error.slice(0, 120))})` : ""} — oxirgi sinxron nusxasi`;
+  const lines = rep.rows.slice(0, 12).map((r) => {
+    const sz = r.sizes.length ? ` — ${r.sizes.map((s) => `${esc(s.label || "—")}: ${s.stock}`).join(", ")}` : "";
+    return `${r.counted ? "•" : "◦"} ${esc(r.name)}: <b>${r.stock}</b>${sz}${r.counted ? "" : " <i>(Mini App hisoblamaydi)</i>"}`;
+  });
+  const parts = [
+    "",
+    `📊 <b>BILLZ qoldig‘i: ${rep.total} dona</b> <i>(${src})</i>`,
+    ...lines,
+  ];
+  if (rep.counted !== rep.total) {
+    parts.push(`Mini App’da: <b>${rep.counted}</b> dona (faqat BILLZ_SHOP_IDS filiallari)`);
+  }
+  if (rep.counted === 0) {
+    parts.push(
+      rep.total > 0
+        ? "⚠️ Tovar BILLZ_SHOP_IDS’ga kirmagan filialda. Mini App’da ko‘rinishi uchun o‘sha filial ID’sini (/billz) BILLZ_SHOP_IDS’ga qo‘shing."
+        : "Mini App’da «Tugagan» ko‘rinadi.",
+    );
+  }
+  return parts.join("\n");
 }
 
 function productKeyboard(p: Product) {
@@ -130,7 +145,7 @@ async function showProduct(ctx: Context, p: Product) {
       : count
         ? "\n\n📷 Yangi rasm yuborsangiz — galereyaga qo‘shiladi."
         : "\n\n📷 Endi mahsulot rasmini yuboring (oddiy rasm yoki fayl sifatida).";
-  await ctx.reply(productText(p) + ask, { parse_mode: "HTML", reply_markup: productKeyboard(p) });
+  await ctx.reply((await productText(p)) + ask, { parse_mode: "HTML", reply_markup: productKeyboard(p) });
 }
 
 // ── Qidiruv ─────────────────────────────────────────────────
@@ -237,7 +252,7 @@ async function onPhoto(ctx: Context, fileId: string, mime: string, size: number 
       const p = r.products[0]!;
       if (sessions.get(adminId)?.key !== p.id) {
         sessions.set(adminId, { key: p.id, step: "photo", token: ++tokenSeq });
-        await ctx.reply(productText(p), { parse_mode: "HTML" });
+        await ctx.reply(await productText(p), { parse_mode: "HTML" });
       }
     } else if (!sessions.has(adminId)) {
       await lookup(ctx, code); // topilmadi yoki tanlash ro'yxati
@@ -413,7 +428,7 @@ export function productComposer() {
     await store.setListingPublished(l.key, show);
     await refreshListings();
     await ctx.answerCallbackQuery({ text: show ? "👁 Ko‘rsatilmoqda" : "🚫 Yashirildi" });
-    await ctx.editMessageText(productText(p), { parse_mode: "HTML", reply_markup: productKeyboard(p) }).catch(() => undefined);
+    await ctx.editMessageText(await productText(p), { parse_mode: "HTML", reply_markup: productKeyboard(p) }).catch(() => undefined);
   });
 
   c.callbackQuery(/^pp:c:(.+)$/, async (ctx) => {
@@ -438,7 +453,7 @@ export function productComposer() {
     } else {
       await ctx.answerCallbackQuery();
     }
-    await ctx.editMessageText(productText(p), { parse_mode: "HTML", reply_markup: productKeyboard(p) }).catch(() => undefined);
+    await ctx.editMessageText(await productText(p), { parse_mode: "HTML", reply_markup: productKeyboard(p) }).catch(() => undefined);
   });
 
   c.on("message:photo", async (ctx) => {
