@@ -424,7 +424,12 @@ export function totalStock(p: Product, shopId?: string) {
 }
 
 function visible(p: Product, shopId?: string) {
-  if (shopId && !p.variants.some((v) => vs(v, shopId).price > 0)) return false;
+  // Filial tanlangan bo'lsa — faqat shu filialda narxi VA qoldig'i borlar. Aks holda boshqa
+  // filialda turgan tovar shu filial ko'rinishida noto'g'ri «Tugagan» bo'lib chiqardi.
+  if (shopId) return p.variants.some((v) => {
+    const s = vs(v, shopId);
+    return s.price > 0 && s.stock > 0;
+  });
   return !config.billz.hideOutOfStock || totalStock(p, shopId) > 0;
 }
 

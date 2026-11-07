@@ -371,6 +371,16 @@ export function buildIndex(items: SlimProduct[], tree: BillzCategoryNode[], shop
       })
       .filter((v) => v.price > 0);
     if (!variants.length) continue;
+    // O'lcham atributi bo'lmasa yorliq SKU'dan olinadi — lekin bitta modelda SKU bir xil
+    // (masalan hammasi "16011") va mijoz farqini ko'rmaydi. Takrorlanganlar shtrix-kodga almashtiriladi.
+    const seen = new Map<string, number>();
+    for (const v of variants) seen.set(v.label, (seen.get(v.label) ?? 0) + 1);
+    const dup = variants.filter((v) => multi && (seen.get(v.label) ?? 0) > 1);
+    const tails = dup.map((v) => v.barcode.slice(-4));
+    const tailsUnique = tails.every((t) => t) && new Set(tails).size === tails.length;
+    dup.forEach((v, i) => {
+      v.label = tailsUnique ? `…${tails[i]}` : v.barcode || `#${i + 1}`;
+    });
     variants.sort((a, b) => a.label.localeCompare(b.label, undefined, { numeric: true }));
 
     const src = parent ?? first;
