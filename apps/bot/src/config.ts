@@ -59,6 +59,9 @@ export const config = {
     syncMinutes: Math.max(5, num(process.env.BILLZ_SYNC_MINUTES, 10)),
     // Faqat qoldig'i bor mahsulotlarni ko'rsatish.
     hideOutOfStock: bool(process.env.BILLZ_HIDE_OUT_OF_STOCK, false),
+    // true — Mini App'da faqat admin botda rasmi tasdiqlangan BILLZ mahsulotlari ko'rinadi.
+    // false — barcha BILLZ mahsulotlari (eski xatti-harakat); tasdiqlangan rasm baribir ishlatiladi.
+    requireApproval: bool(process.env.BILLZ_REQUIRE_APPROVAL, true),
     // Yetkazilgan buyurtmani BILLZ'ga sotuv sifatida o'tkazish (qoldiq kamayadi).
     pushSales: bool(process.env.BILLZ_PUSH_SALES, false),
     saleShopId: str(process.env.BILLZ_SALE_SHOP_ID),
@@ -89,6 +92,18 @@ export const config = {
 
   yandexMapsKey: str(process.env.YANDEX_MAPS_API_KEY),
 
+  // ── OpenAI (admin botda mahsulot rasmining fonini tozalash) ──
+  openai: {
+    apiKey: str(process.env.OPENAI_API_KEY),
+    apiUrl: str(process.env.OPENAI_API_URL, "https://api.openai.com/v1").replace(/\/+$/, ""),
+    model: str(process.env.OPENAI_IMAGE_MODEL, "gpt-image-2.5-sunburst"),
+    quality: str(process.env.OPENAI_IMAGE_QUALITY, "high"),
+    // Mini App kartalari 4:5 — shu nisbatda (eni va bo'yi 16 ga karrali bo'lishi shart).
+    size: str(process.env.OPENAI_IMAGE_SIZE, "1024x1280"),
+    // Bo'sh bo'lsa — standart prompt (src/ai/image.ts).
+    prompt: str(process.env.OPENAI_IMAGE_PROMPT),
+  },
+
   port: Number(process.env.PORT || 3001),
   host: "0.0.0.0",
 };
@@ -96,3 +111,4 @@ export const config = {
 export const hasBot = Boolean(config.botToken);
 export const hasAdminBot = Boolean(config.adminBotToken);
 export const hasBillz = Boolean(config.billz.secretToken);
+export const hasOpenAI = Boolean(config.openai.apiKey);

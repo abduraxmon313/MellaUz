@@ -1,3 +1,4 @@
+import { randomBytes } from "node:crypto";
 import postgres from "postgres";
 import { config } from "./config.js";
 
@@ -120,6 +121,29 @@ export interface ManualRow {
   updatedAt: string;
 }
 
+/**
+ * Admin botda tasdiqlangan BILLZ mahsuloti (Mini App'da ko'rinadi).
+ * `key` — katalog kartasi ID'si; `variantIds` — kartadagi BILLZ tovar ID'lari
+ * (karta ID'si o'zgarib qolsa ham mahsulot shu orqali topiladi).
+ */
+export interface Listing {
+  key: string;
+  variantIds: string[];
+  sku: string;
+  name: string;
+  published: boolean;
+  imageIds: string[];
+  createdBy: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type ListingInput = Pick<Listing, "key" | "variantIds" | "sku" | "name" | "createdBy">;
+
+export const LISTING_MAX_IMAGES = 10;
+
+const newId = () => randomBytes(16).toString("hex");
+
 export interface Store {
   kind: "postgres" | "memory";
   init(): Promise<void>;
@@ -147,6 +171,16 @@ export interface Store {
   /** Chop etilgan qo'lda kiritilgan mahsulotlar + "namunalarni yashirish" sozlamasi. */
   listManualProducts(): Promise<{ products: ManualRow[]; hideSamples: boolean }>;
   getManualImage(id: string): Promise<Media | null>;
+
+  /** Admin bot orqali tasdiqlangan BILLZ mahsulotlari. */
+  listListings(): Promise<Listing[]>;
+  getListing(key: string): Promise<Listing | null>;
+  /** Rasm qo'shadi (mahsulot yo'q bo'lsa yaratadi) va Mini App'da ko'rsatadi. Rasm ID'sini qaytaradi. */
+  addListingImage(l: ListingInput, image: { contentType: string; data: Buffer }): Promise<string>;
+  setListingPublished(key: string, published: boolean): Promise<void>;
+  /** Barcha rasmlarni o'chiradi va mahsulotni yashiradi. */
+  clearListingImages(key: string): Promise<void>;
+  getListingImage(id: string): Promise<Media | null>;
 }
 
 const nowIso = () => new Date().toISOString();
@@ -261,6 +295,47 @@ class MemoryStore implements Store {
   async getManualImage() {
     return null;
   }
+
+  private listings = new Map<string, Listing>();
+  private listingImages = new Map<string, Media & { listingKey: string }>();
+
+  async listListings() {
+    return [...this.listings.values()].map((l) => structuredClone(l));
+  }
+  async getListing(key: string) {
+    const l = this.listings.get(key);
+    return l ? structuredClone(l) : null;
+  }
+  async addListingImage(l: ListingInput, image: { contentType: string; data: Buffer }) {
+    const t = nowIso();
+    const cur = this.listings.get(l.key);
+    if (cur && cur.imageIds.length >= LISTING_MAX_IMAGES) throw new Error(`Ko‘pi bilan ${LISTING_MAX_IMAGES} ta rasm`);
+    const id = newId();
+    this.listingImages.set(id, { key: id, contentType: image.contentType, data: image.data, listingKey: l.key });
+    this.listings.set(l.key, {
+      ...l,
+      published: true,
+      imageIds: [...(cur?.imageIds ?? []), id],
+      createdBy: cur?.createdBy ?? l.createdBy,
+      createdAt: cur?.createdAt ?? t,
+      updatedAt: t,
+    });
+    return id;
+  }
+  async setListingPublished(key: string, published: boolean) {
+    const l = this.listings.get(key);
+    if (l) Object.assign(l, { published, updatedAt: nowIso() });
+  }
+  async clearListingImages(key: string) {
+    const l = this.listings.get(key);
+    if (!l) return;
+    for (const id of l.imageIds) this.listingImages.delete(id);
+    Object.assign(l, { imageIds: [], published: false, updatedAt: nowIso() });
+  }
+  async getListingImage(id: string) {
+    const m = this.listingImages.get(id);
+    return m ? { key: m.key, contentType: m.contentType, data: m.data } : null;
+  }
 }
 
 // ═════════════════════════════════════════════════════════════
@@ -288,6 +363,20 @@ function rowToOrder(r: Row): Order {
     number: Number(r.id) + 1000,
     userId: Number(r.user_id),
     status: r.status as OrderStatus,
+    createdAt: new Date(r.created_at as string).toISOString(),
+    updatedAt: new Date(r.updated_at as string).toISOString(),
+  };
+}
+
+function rowToListing(r: Row, imageIds: string[]): Listing {
+  return {
+    key: String(r.key),
+    variantIds: Array.isArray(r.variant_ids) ? (r.variant_ids as unknown[]).map(String) : [],
+    sku: String(r.sku ?? ""),
+    name: String(r.name ?? ""),
+    published: Boolean(r.published),
+    imageIds,
+    createdBy: Number(r.created_by ?? 0),
     createdAt: new Date(r.created_at as string).toISOString(),
     updatedAt: new Date(r.updated_at as string).toISOString(),
   };
@@ -362,6 +451,28 @@ class PgStore implements Store {
         value JSONB NOT NULL,
         updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
       )`;
+    // Admin botda tasdiqlangan BILLZ mahsulotlari va ularning (AI ishlov bergan) rasmlari.
+    await sql`
+      CREATE TABLE IF NOT EXISTS billz_listings (
+        key         TEXT PRIMARY KEY,
+        variant_ids JSONB NOT NULL DEFAULT '[]'::jsonb,
+        sku         TEXT NOT NULL DEFAULT '',
+        name        TEXT NOT NULL DEFAULT '',
+        published   BOOLEAN NOT NULL DEFAULT true,
+        created_by  BIGINT NOT NULL DEFAULT 0,
+        created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+        updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+      )`;
+    await sql`
+      CREATE TABLE IF NOT EXISTS billz_listing_images (
+        id           TEXT PRIMARY KEY,
+        listing_key  TEXT NOT NULL REFERENCES billz_listings(key) ON DELETE CASCADE,
+        position     INTEGER NOT NULL DEFAULT 0,
+        content_type TEXT NOT NULL,
+        data         BYTEA NOT NULL,
+        created_at   TIMESTAMPTZ NOT NULL DEFAULT now()
+      )`;
+    await sql`CREATE INDEX IF NOT EXISTS billz_listing_images_key_idx ON billz_listing_images (listing_key, position)`;
     // Qo'lda kiritilgan katalog (sayt admin paneli yozadi) — sxema sayt bilan bir xil.
     // Sayt ham shu bazada jadval yaratadi — bir xil advisory lock bilan navbatlashamiz.
     await sql.begin(async (tx) => {
@@ -406,6 +517,66 @@ class PgStore implements Store {
 
   async close() {
     await this.sql.end({ timeout: 5 });
+  }
+
+  async listListings() {
+    const rows = await this.sql`SELECT * FROM billz_listings ORDER BY created_at DESC`;
+    const imgs = await this.sql`SELECT id, listing_key FROM billz_listing_images ORDER BY position, created_at`;
+    const by = new Map<string, string[]>();
+    for (const i of imgs) {
+      const list = by.get(String(i.listing_key)) ?? [];
+      list.push(String(i.id));
+      by.set(String(i.listing_key), list);
+    }
+    return rows.map((r) => rowToListing(r, by.get(String(r.key)) ?? []));
+  }
+
+  async getListing(key: string) {
+    const [r] = await this.sql`SELECT * FROM billz_listings WHERE key = ${key}`;
+    if (!r) return null;
+    const imgs = await this.sql`
+      SELECT id FROM billz_listing_images WHERE listing_key = ${key} ORDER BY position, created_at`;
+    return rowToListing(r, imgs.map((i) => String(i.id)));
+  }
+
+  async addListingImage(l: ListingInput, image: { contentType: string; data: Buffer }) {
+    const id = newId();
+    await this.sql.begin(async (tx) => {
+      const t = tx as unknown as postgres.Sql;
+      await t`
+        INSERT INTO billz_listings (key, variant_ids, sku, name, published, created_by)
+        VALUES (${l.key}, ${t.json(l.variantIds)}, ${l.sku}, ${l.name}, true, ${l.createdBy})
+        ON CONFLICT (key) DO UPDATE SET
+          variant_ids = EXCLUDED.variant_ids, sku = EXCLUDED.sku, name = EXCLUDED.name,
+          published = true, updated_at = now()`;
+      // Yuqoridagi UPSERT qatorni tranzaksiya oxirigacha qulflaydi — bir vaqtda ikki admin
+      // rasm qo'shsa ham pozitsiya to'qnashmaydi.
+      const [c] = await t`
+        SELECT count(*)::int AS n, COALESCE(max(position), -1)::int AS p
+        FROM billz_listing_images WHERE listing_key = ${l.key}`;
+      if (Number(c!.n) >= LISTING_MAX_IMAGES) throw new Error(`Ko‘pi bilan ${LISTING_MAX_IMAGES} ta rasm`);
+      await t`
+        INSERT INTO billz_listing_images (id, listing_key, position, content_type, data)
+        VALUES (${id}, ${l.key}, ${Number(c!.p) + 1}, ${image.contentType}, ${image.data})`;
+    });
+    return id;
+  }
+
+  async setListingPublished(key: string, published: boolean) {
+    await this.sql`UPDATE billz_listings SET published = ${published}, updated_at = now() WHERE key = ${key}`;
+  }
+
+  async clearListingImages(key: string) {
+    await this.sql.begin(async (tx) => {
+      const t = tx as unknown as postgres.Sql;
+      await t`DELETE FROM billz_listing_images WHERE listing_key = ${key}`;
+      await t`UPDATE billz_listings SET published = false, updated_at = now() WHERE key = ${key}`;
+    });
+  }
+
+  async getListingImage(id: string) {
+    const [r] = await this.sql`SELECT content_type, data FROM billz_listing_images WHERE id = ${id}`;
+    return r ? { key: id, contentType: String(r.content_type), data: Buffer.from(r.data as Uint8Array) } : null;
   }
 
   async getUser(id: number) {

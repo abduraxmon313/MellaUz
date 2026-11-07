@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { config, hasBillz } from "../config.js";
-import { store, type ManualRow } from "../store.js";
+import { store, type Listing, type ManualRow } from "../store.js";
 import {
   buildIndex,
   fetchAllProducts,
@@ -45,6 +45,11 @@ let source: "billz" | "mock" = "mock";
 
 /** Qo'lda kiritilgan mahsulotlar (sayt /admin). */
 let manual: { products: Product[]; hideSamples: boolean } = { products: [], hideSamples: false };
+
+/** Admin botda tasdiqlangan mahsulotlar: karta ID'si va har bir BILLZ tovar ID'si → yozuv. */
+let listingById = new Map<string, Listing>();
+let listingCount = 0;
+let listingError = "";
 
 /** Mijozga ko'rinadigan birlashgan ro'yxat va tezkor qidiruv xaritalari. */
 let all: Product[] = [];
@@ -141,11 +146,79 @@ export async function refreshManual(): Promise<void> {
   }
 }
 
+// ── Admin botda tasdiqlangan mahsulotlar ────────────────────
+
+/** Rasm saqlangan, ko'rsatish yoqilgan yozuvni topadi (karta ID'si yoki variant ID'lari bo'yicha). */
+export function listingFor(p: Product): Listing | null {
+  const l = listingById.get(p.id) ?? p.variants.map((v) => listingById.get(v.id)).find(Boolean);
+  return l ?? null;
+}
+
+export async function refreshListings(): Promise<void> {
+  try {
+    const rows = await store.listListings();
+    const map = new Map<string, Listing>();
+    for (const l of rows) {
+      for (const id of l.variantIds) map.set(id, l);
+      map.set(l.key, l);
+    }
+    listingById = map;
+    listingCount = rows.filter((l) => l.published && l.imageIds.length).length;
+    listingError = "";
+    rebuildView();
+  } catch (e) {
+    listingError = (e as Error).message;
+    console.warn("[catalog] tasdiqlangan mahsulotlar o'qilmadi:", listingError);
+  }
+}
+
+/** BILLZ mahsulotiga tasdiqlangan rasmlarni qo'llaydi; tasdiqlash talab qilinsa — qolganlarini yashiradi. */
+function applyListings(list: Product[]): Product[] {
+  const strict = source === "billz" && config.billz.requireApproval;
+  const out: Product[] = [];
+  for (const p of list) {
+    const l = listingFor(p);
+    const live = l && l.published && l.imageIds.length > 0;
+    if (!live) {
+      if (!strict) out.push(p);
+      continue;
+    }
+    // Yangi tasdiqlangan mahsulot "Yangi" saralashda oldinda chiqsin.
+    const updatedAt = l.createdAt > p.updatedAt ? l.createdAt : p.updatedAt;
+    out.push({ ...p, images: l.imageIds.map((id) => `/media/${id}`), updatedAt });
+  }
+  return out;
+}
+
+/**
+ * Admin bot: BILLZ kodi (artikul/SKU, shtrix-kod yoki ID) bo'yicha mahsulot kartasini qidiradi.
+ * Tasdiqlanmaganlar ham qidiriladi. Aniq moslik bo'lmasa — nomi bo'yicha (ko'pi bilan `limit` ta).
+ */
+export function findByCode(code: string, limit = 8): { exact: boolean; products: Product[] } {
+  const q = code.trim().toLowerCase();
+  if (!q) return { exact: false, products: [] };
+  const exact = baseProducts.filter(
+    (p) =>
+      p.id.toLowerCase() === q ||
+      p.sku.toLowerCase() === q ||
+      p.variants.some((v) => v.id.toLowerCase() === q || v.sku.toLowerCase() === q || v.barcode.toLowerCase() === q),
+  );
+  if (exact.length) return { exact: true, products: exact.slice(0, limit) };
+  if (q.length < 3) return { exact: false, products: [] };
+  const byName = baseProducts.filter((p) => loc(p.name, "uz").toLowerCase().includes(q));
+  return { exact: false, products: byName.slice(0, limit) };
+}
+
+/** Admin bot uchun karta (tasdiqlanmagan bo'lsa ham). */
+export function getBaseProduct(id: string): Product | null {
+  return baseProducts.find((p) => p.id === id) ?? null;
+}
+
 // ── Ko'rinishni qayta qurish ────────────────────────────────
 
 function rebuildView() {
   const hideBase = manual.hideSamples && source === "mock";
-  all = [...manual.products, ...(hideBase ? [] : baseProducts)];
+  all = [...manual.products, ...(hideBase ? [] : applyListings(baseProducts))];
 
   const cats = [...baseCategories];
   for (const p of manual.products) {
@@ -263,6 +336,7 @@ export function syncNow(): Promise<void> {
 
 export async function initCatalog() {
   await refreshManual();
+  await refreshListings();
   setInterval(() => void refreshManual(), MANUAL_REFRESH_MS).unref();
 
   if (!hasBillz) {
@@ -289,9 +363,14 @@ export function catalogStatus() {
     categories: categoriesView.length,
     shops: shops.length,
     manualProducts: manual.products.length,
+    /** Admin botda rasmi tasdiqlangan BILLZ mahsulotlari. */
+    approvedProducts: listingCount,
+    billzTotal: source === "billz" ? baseProducts.length : 0,
+    requireApproval: source === "billz" && config.billz.requireApproval,
     loading: loading.active ? `${loading.loaded}/${loading.total || "?"}` : "",
     lastError,
     manualError,
+    listingError,
   };
 }
 
