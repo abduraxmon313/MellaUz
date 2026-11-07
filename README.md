@@ -100,10 +100,16 @@ kategoriya daraxti). Rasmlar BILLZ qoidasiga ko‘ra **o‘z serverimizdan** (`/
 beriladi. Narx va qoldiq buyurtmada serverda qayta tekshiriladi. `BILLZ_PUSH_SALES=true`
 bo‘lsa, yetkazilgan buyurtma BILLZ'ga sotuv sifatida o‘tkaziladi.
 
+**Qoldiq yangilanishi.** BILLZ’da sotuv bo‘lsa, qoldiq keyingi o‘zgarishlar sinxronida
+(`BILLZ_SYNC_MINUTES`, sukut 5 daqiqa) Mini App’ga tushadi — oxirgi dona sotilganda ham
+(`include_empty_stocks=true`). Mini App qoldig‘i faqat `BILLZ_SHOP_IDS` filiallari bo‘yicha hisoblanadi.
+Admin botda mahsulot kodi yuborilsa, **filiallar bo‘yicha qoldiq** ko‘rinadi; tovar ro‘yxatga kirmagan
+filialda bo‘lsa (Mini App’da «Tugagan»), bot ogohlantiradi.
+
 Sozlash: `.env.example` dagi `mella-bot` bo‘limi. Lokal sinov:
 
 ```bash
-pnpm --filter mella-bot dev            # tokensiz — namuna katalog, brauzerda ham buyurtma mumkin
+pnpm --filter mella-bot dev            # BILLZ tokenisiz katalog bo'sh (namuna katalog olib tashlangan)
 pnpm --filter mella-bot fake-billz     # soxta BILLZ server (:4555)
 pnpm --filter mella-bot smoke:billz    # BILLZ integratsiyasi testi (fake-billz yoqilgan holda)
 DATABASE_URL=postgres://… pnpm --filter mella-bot smoke:store
@@ -213,7 +219,11 @@ so‘rovi) + mijoz/admin botlar va Mini App (BILLZ). Railway'da ikki service sif
 
 ERP ulanguncha mahsulotlar sayt admin panelida qo‘lda kiritiladi: **rasmlar, nomi (UZ/RU/EN), tavsifi,
 materiali, kategoriyasi, narxi / eski narxi, o‘lchamlari va har o‘lcham qoldig‘i**. Qo‘shilgan mahsulot
-**saytda va Mini App’da** ko‘rinadi. Rasmlar **PostgreSQL’da** (BYTEA) saqlanadi.
+**saytda** ko‘rinadi. Rasmlar **PostgreSQL’da** (BYTEA) saqlanadi.
+
+> **Mini App’da endi ko‘rsatilmaydi.** BILLZ ulangani uchun Mini App’da faqat admin bot orqali
+> tasdiqlangan BILLZ mahsulotlari chiqadi. Qo‘lda kiritilganlar bazada saqlanib qoladi; ularni
+> Mini App’da qayta ko‘rsatish kerak bo‘lsa: `mella-bot` → `MINIAPP_MANUAL_PRODUCTS=true`.
 
 **Railway sozlash:**
 

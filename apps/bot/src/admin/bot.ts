@@ -85,7 +85,7 @@ let syncBusy = false;
 
 async function syncReport(ctx: Context) {
   if (!config.billz.secretToken) {
-    await ctx.reply("ℹ️ BILLZ_SECRET_TOKEN o‘rnatilmagan — Mini App namuna katalog bilan ishlayapti.");
+    await ctx.reply("ℹ️ BILLZ_SECRET_TOKEN o‘rnatilmagan — Mini App katalogi bo‘sh.");
     return;
   }
   const chatId = ctx.chat!.id;

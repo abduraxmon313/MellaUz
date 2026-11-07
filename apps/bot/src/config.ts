@@ -56,7 +56,7 @@ export const config = {
     // Bo'sh bo'lsa — barcha do'konlar qoldig'i yig'iladi, narx birinchi do'kondan.
     shopIds: list(process.env.BILLZ_SHOP_IDS || process.env.BILLZ_SHOP_ID),
     // Katalogni to'liq yangilash oralig'i (daqiqa). BILLZ tavsiyasi: >= 5.
-    syncMinutes: Math.max(5, num(process.env.BILLZ_SYNC_MINUTES, 10)),
+    syncMinutes: Math.max(5, num(process.env.BILLZ_SYNC_MINUTES, 5)),
     // Faqat qoldig'i bor mahsulotlarni ko'rsatish.
     hideOutOfStock: bool(process.env.BILLZ_HIDE_OUT_OF_STOCK, false),
     // true — Mini App'da faqat admin botda rasmi tasdiqlangan BILLZ mahsulotlari ko'rinadi.
@@ -91,6 +91,10 @@ export const config = {
   },
 
   yandexMapsKey: str(process.env.YANDEX_MAPS_API_KEY),
+
+  // Sayt /admin panelida qo'lda kiritilgan (eski, vaqtinchalik) mahsulotlarni Mini App'da ko'rsatish.
+  // Sukut — yo'q: Mini App'da faqat BILLZ mahsulotlari (admin bot orqali tasdiqlangan).
+  miniappManualProducts: bool(process.env.MINIAPP_MANUAL_PRODUCTS, false),
 
   // ── OpenAI (admin botda mahsulot rasmining fonini tozalash) ──
   openai: {

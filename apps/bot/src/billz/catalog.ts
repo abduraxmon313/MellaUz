@@ -55,9 +55,9 @@ interface BillzProductRaw {
   categories?: BillzCategoryRef[] | null;
   product_attributes?: { attribute_name?: string; attribute_value?: string }[] | null;
   product_type_id?: string;
-  shop_measurement_values?: { shop_id: string; active_measurement_value: number | string }[] | null;
+  shop_measurement_values?: { shop_id: string; shop_name?: string; active_measurement_value: number | string }[] | null;
   shop_prices?:
-    | { shop_id: string; retail_price: number; promo_price?: number; promos?: unknown[] | null }[]
+    | { shop_id: string; shop_name?: string; retail_price: number; promo_price?: number; promos?: unknown[] | null }[]
     | null;
   updated_at?: string;
 }
@@ -85,6 +85,12 @@ export interface SlimProduct {
   updatedAt: string;
 }
 
+/** Barcha filial nomlari (BILLZ_SHOP_IDS'ga kirmaganlari ham) — admin botdagi qoldiq tafsiloti uchun. */
+const shopNames = new Map<string, string>();
+export function billzShopName(id: string) {
+  return shopNames.get(id) ?? "";
+}
+
 const n = (v: unknown) => {
   const x = Number(v);
   return Number.isFinite(x) ? x : 0;
@@ -107,7 +113,13 @@ function slim(p: BillzProductRaw): SlimProduct {
     prices[sp.shop_id] = [retail, hasPromo ? promo : 0];
   }
   const stocks: Record<string, number> = {};
-  for (const s of p.shop_measurement_values ?? []) stocks[s.shop_id] = Math.max(0, n(s.active_measurement_value));
+  for (const s of p.shop_measurement_values ?? []) {
+    stocks[s.shop_id] = Math.max(0, n(s.active_measurement_value));
+    if (s.shop_name && !shopNames.has(s.shop_id)) shopNames.set(s.shop_id, s.shop_name);
+  }
+  for (const sp of p.shop_prices ?? []) {
+    if (sp.shop_name && !shopNames.has(sp.shop_id)) shopNames.set(sp.shop_id, sp.shop_name);
+  }
 
   return {
     id: p.id,
@@ -141,7 +153,14 @@ async function fetchPage(page: number, lastUpdated?: string) {
   for (let attempt = 0; attempt < PAGE_RETRIES; attempt++) {
     try {
       const r = await billz<{ count?: number; products?: BillzProductRaw[] | null }>("/v2/products", {
-        query: { limit: PAGE_LIMIT, page, last_updated_date: lastUpdated },
+        query: {
+          limit: PAGE_LIMIT,
+          page,
+          last_updated_date: lastUpdated,
+          // Sukut bo'yicha BILLZ qoldig'i 0 bo'lgan tovarlarni qaytarmaydi. O'zgarishlarda ular ham kerak:
+          // aks holda oxirgi dona sotilganda yangilanish kelmaydi va Mini App eski qoldiqni ko'rsataveradi.
+          include_empty_stocks: lastUpdated ? "true" : undefined,
+        },
         timeoutMs: 60_000,
       });
       return { items: (r.products ?? []).filter((p) => p && p.id), count: Number(r.count ?? 0) };
@@ -242,7 +261,7 @@ function topLevelMap(tree: BillzCategoryNode[]) {
 
 const norm = (s: string) => s.toLowerCase().replace(/[\s'`‘’"]+/g, " ").trim();
 
-function allowedShop(id: string) {
+export function allowedShop(id: string) {
   return config.billz.shopIds.length === 0 || config.billz.shopIds.includes(id);
 }
 

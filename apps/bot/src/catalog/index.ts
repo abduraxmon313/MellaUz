@@ -10,9 +10,16 @@ import {
   type BillzShop,
   type SlimProduct,
 } from "../billz/catalog.js";
-import { buildMockSnapshot } from "./mock.js";
-import { categories as mockCategories } from "./mock-source.js";
+import { allowedShop, billzShopName } from "../billz/catalog.js";
 import type { Category, Lang, Localized, Product, Variant } from "./types.js";
+
+/** Sayt /admin panelidagi kategoriya slug'lari (qo'lda kiritilgan mahsulotlar yoqilganda kerak). */
+const MANUAL_CATEGORIES: Record<string, { name: Localized; order: number }> = {
+  poyabzal: { name: { uz: "Oyoq kiyim", ru: "Обувь", en: "Footwear" }, order: 1 },
+  sumkalar: { name: { uz: "Sumkalar", ru: "Сумки", en: "Bags" }, order: 2 },
+  kiyim: { name: { uz: "Kiyim-kechak", ru: "Одежда", en: "Clothing" }, order: 3 },
+  aksessuarlar: { name: { uz: "Aksessuarlar", ru: "Аксессуары", en: "Accessories" }, order: 4 },
+};
 
 /**
  * Katalog xizmati.
@@ -38,13 +45,13 @@ let raw = new Map<string, SlimProduct>();
 let tree: Awaited<ReturnType<typeof fetchCategoryTree>> = [];
 let shops: BillzShop[] = [];
 
-/** Asosiy katalog (BILLZ yoki namuna). */
+/** Asosiy katalog — BILLZ. Token bo'lmasa bo'sh (namuna katalog olib tashlangan). */
 let baseProducts: Product[] = [];
 let baseCategories: Category[] = [];
-let source: "billz" | "mock" = "mock";
+let source: "billz" | "none" = "none";
 
-/** Qo'lda kiritilgan mahsulotlar (sayt /admin). */
-let manual: { products: Product[]; hideSamples: boolean } = { products: [], hideSamples: false };
+/** Qo'lda kiritilgan mahsulotlar (sayt /admin) — faqat MINIAPP_MANUAL_PRODUCTS=true bo'lsa. */
+let manual: { products: Product[] } = { products: [] };
 
 /** Admin botda tasdiqlangan mahsulotlar: karta ID'si va har bir BILLZ tovar ID'si → yozuv. */
 let listingById = new Map<string, Listing>();
@@ -135,9 +142,10 @@ function manualToProduct(m: ManualRow): Product {
 }
 
 export async function refreshManual(): Promise<void> {
+  if (!config.miniappManualProducts) return;
   try {
     const res = await store.listManualProducts();
-    manual = { products: res.products.map(manualToProduct), hideSamples: res.hideSamples };
+    manual = { products: res.products.map(manualToProduct) };
     manualError = "";
     rebuildView();
   } catch (e) {
@@ -214,17 +222,46 @@ export function getBaseProduct(id: string): Product | null {
   return baseProducts.find((p) => p.id === id) ?? null;
 }
 
+export interface ShopStockRow {
+  shopId: string;
+  name: string;
+  stock: number;
+  /** BILLZ_SHOP_IDS'ga kiradi — Mini App qoldig'iga qo'shiladi. */
+  counted: boolean;
+}
+
+/**
+ * Admin bot: mahsulotning BARCHA filiallardagi qoldig'i (BILLZ xom ma'lumotidan),
+ * jumladan Mini App hisoblamaydigan filiallar — "Tugagan" sababini ko'rish uchun.
+ */
+export function stockByShop(p: Product): ShopStockRow[] {
+  const sum = new Map<string, number>();
+  for (const v of p.variants) {
+    const r = raw.get(v.id);
+    if (!r) continue;
+    for (const [shopId, n] of Object.entries(r.stocks)) sum.set(shopId, (sum.get(shopId) ?? 0) + n);
+  }
+  for (const s of shops) if (!sum.has(s.id)) sum.set(s.id, 0);
+  return [...sum.entries()]
+    .map(([shopId, stock]) => ({
+      shopId,
+      name: shops.find((s) => s.id === shopId && s.name !== s.id)?.name || billzShopName(shopId) || shopId,
+      stock,
+      counted: allowedShop(shopId),
+    }))
+    .sort((a, b) => Number(b.counted) - Number(a.counted) || b.stock - a.stock);
+}
+
 // ── Ko'rinishni qayta qurish ────────────────────────────────
 
 function rebuildView() {
-  const hideBase = manual.hideSamples && source === "mock";
-  all = [...manual.products, ...(hideBase ? [] : applyListings(baseProducts))];
+  all = [...manual.products, ...applyListings(baseProducts)];
 
   const cats = [...baseCategories];
   for (const p of manual.products) {
     for (const id of p.categoryIds) {
       if (cats.some((c) => c.id === id)) continue;
-      const mc = mockCategories.find((c) => c.slug === id);
+      const mc = MANUAL_CATEGORIES[id];
       cats.push({ id, name: mc ? mc.name : id, order: mc ? mc.order : 99 });
     }
   }
@@ -337,16 +374,11 @@ export function syncNow(): Promise<void> {
 export async function initCatalog() {
   await refreshManual();
   await refreshListings();
-  setInterval(() => void refreshManual(), MANUAL_REFRESH_MS).unref();
+  if (config.miniappManualProducts) setInterval(() => void refreshManual(), MANUAL_REFRESH_MS).unref();
 
   if (!hasBillz) {
-    const mock = buildMockSnapshot();
-    baseProducts = mock.products;
-    baseCategories = mock.categories;
-    source = "mock";
-    syncedAt = mock.syncedAt;
     rebuildView();
-    console.log("[catalog] BILLZ_SECRET_TOKEN yo'q — namuna katalog ishlatiladi.");
+    console.warn("[catalog] BILLZ_SECRET_TOKEN yo'q — katalog bo'sh (namuna katalog olib tashlangan).");
     return;
   }
   rebuildView();

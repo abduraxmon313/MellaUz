@@ -49,6 +49,19 @@ http.createServer(async (req, res) => {
   let body = "";
   for await (const ch of req) body += ch;
   if (url.pathname === "/_calls") return send(res, 200, calls);
+  // Sotuvni taqlid qilish: /_sell?id=V-HEEL-38&qty=1 — qoldiq kamayadi, updated_at yangilanadi.
+  if (url.pathname === "/_sell") {
+    const p = products.find((x) => x.id === url.searchParams.get("id"));
+    if (!p) return send(res, 404, { ok: false });
+    let left = Number(url.searchParams.get("qty") || 1);
+    for (const s of p.shop_measurement_values ?? []) {
+      const take = Math.min(left, s.active_measurement_value);
+      s.active_measurement_value -= take;
+      left -= take;
+    }
+    p.updated_at = new Date().toISOString().replace("T", " ").slice(0, 19);
+    return send(res, 200, { ok: true });
+  }
   if (url.pathname === "/_bump") {
     const p = products.find((x) => x.id === "P-BAG");
     p.shop_prices = prices(1190000);
@@ -68,7 +81,11 @@ http.createServer(async (req, res) => {
     if (page429) { page429 = false; return send(res, 429, { message: "too many" }); }
     const limit = Number(url.searchParams.get("limit")), page = Number(url.searchParams.get("page"));
     const since = url.searchParams.get("last_updated_date");
-    const list = since ? products.filter((p) => (p.updated_at || "") >= since) : products;
+    let list = since ? products.filter((p) => (p.updated_at || "") >= since) : products;
+    // Haqiqiy BILLZ kabi: include_empty_stocks=true bo'lmasa, qoldig'i 0 tovarlar o'zgarishlarda kelmaydi.
+    if (since && url.searchParams.get("include_empty_stocks") !== "true") {
+      list = list.filter((p) => (p.shop_measurement_values ?? []).some((s) => s.active_measurement_value > 0));
+    }
     return send(res, 200, { count: list.length, products: list.slice((page - 1) * limit, page * limit) });
   }
   if (url.pathname === "/v2/category") return send(res, 200, { count: 2, categories: tree });
