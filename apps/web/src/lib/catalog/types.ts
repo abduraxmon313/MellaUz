@@ -23,6 +23,12 @@ export interface Product {
   description: Localized;
   /** Material tavsifi (ixtiyoriy) */
   material?: Localized;
+  /** Brend (BILLZ). */
+  brand?: string;
+  /** Xususiyatlar har til uchun (rang, material…) — Mini App katalogidan. */
+  specs?: Partial<Record<Locale, { name: string; value: string }[]>>;
+  /** Mini App (bot) katalogidagi ID — eski havolalar uchun. */
+  botId?: string;
   categorySlug: string;
   /** Narx — so'mda (butun son). 0 bo'lsa "narx so'rov bo'yicha". */
   price: number;
@@ -52,6 +58,8 @@ export interface ProductView {
   inStock: boolean;
   images: string[];
   sizes: { label: string; inStock: boolean }[];
+  brand?: string;
+  specs: { name: string; value: string }[];
 }
 
 export interface CategoryView {

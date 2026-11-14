@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowIcon } from "@/components/ArrowIcon";
 import { notFound } from "next/navigation";
-import { isLocale, locales } from "@/i18n/config";
+import { isLocale } from "@/i18n/config";
 import { getDictionary } from "@/i18n/dictionaries";
 import { getCatalog, toProductView } from "@/lib/catalog/provider";
 import { ProductCard } from "@/components/ProductCard";
@@ -11,20 +11,12 @@ import { PageHeader } from "@/components/PageHeader";
 import { CategoryFilter } from "@/components/CategoryFilter";
 
 
-// Admin panelda qo'shilgan mahsulotlar: saqlanganda darhol, aks holda ko'pi bilan 60 soniyada yangilanadi.
+// Mini App katalogi (narx, qoldiq) ko'pi bilan 60 soniyada yangilanadi.
 export const revalidate = 60;
 
+// Mahsulotlar Mini App katalogidan (BILLZ) keladi — sahifalar birinchi so'rovda yaratilib, keshlanadi.
 export async function generateStaticParams() {
-  const { MockCatalogProvider } = await import("@/lib/catalog/mock-provider");
-  const provider = new MockCatalogProvider();
-  const categories = await provider.listCategories();
-  const params: { lang: string; category: string }[] = [];
-  for (const lang of locales) {
-    for (const category of categories) {
-      params.push({ lang, category: category.slug });
-    }
-  }
-  return params;
+  return [] as { lang: string; category: string }[];
 }
 
 export async function generateMetadata({

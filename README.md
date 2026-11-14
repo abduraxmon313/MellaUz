@@ -94,8 +94,8 @@ Shuning uchun Mini App’da **faqat admin tasdiqlagan** BILLZ mahsulotlari ko‘
 (`custom_fields`); «size50» → «50». Topilmasa (o‘lcham kiritilmagan) — shtrix-kod oxiri. Tekshirish: admin botda
 `/info <SKU>` — BILLZ qaytargan xom atribut va xususiyatlar hamda aniqlangan o‘lcham.
 
-**Mini App’dagi nom** — BILLZ nomidan model raqamisiz («Lafiera 17» → «Lafiera»; `MINIAPP_STRIP_MODEL_NUMBER=false`
-bilan o‘chiriladi). Admin kartasida **✏️ Nomi** va **📝 Tavsif** tugmalari bilan o‘z nomi/tavsifini berish mumkin.
+**Mini App’dagi nom** — BILLZ nomidagi birinchi raqamgacha («Lafiera 17» → «Lafiera», «Mella kurtka 34 J» →
+«Mella kurtka»; nom raqam bilan boshlansa o‘zgarmaydi; `MINIAPP_STRIP_MODEL_NUMBER=false` bilan o‘chiriladi). Admin kartasida **✏️ Nomi** va **📝 Tavsif** tugmalari bilan o‘z nomi/tavsifini berish mumkin.
 Mahsulot oynasida model (SKU), brend, tavsif va xususiyatlar (rang, material…) ko‘rinadi; ichki maydonlar
 (yetkazib beruvchi, tannarx…) ko‘rsatilmaydi, qo‘shimchalari `MINIAPP_HIDDEN_FIELDS` bilan yashiriladi.
 
@@ -228,6 +228,18 @@ so‘rovi) + mijoz/admin botlar va Mini App (BILLZ). Railway'da ikki service sif
 
 
 ---
+
+## 🌐 Sayt katalogi = Mini App katalogi
+
+Sayt (mella-web) mahsulotlarni Mini App’dan oladi: `GET <bot>/api/site/catalog` (admin botda tasdiqlangan
+BILLZ mahsulotlari, AI rasmlari, narx, qoldiq, o‘lchamlar, xususiyatlar — 3 tilda). Namuna mahsulotlar olib tashlangan.
+
+| Servis | O‘zgaruvchi | Qiymat |
+|--------|-------------|--------|
+| mella-web | `BOT_PUBLIC_URL` | `https://${{mella-bot.RAILWAY_PUBLIC_DOMAIN}}` (bot’ning ommaviy domeni) |
+| mella-web | `BOT_API_URL` | (ixtiyoriy) ichki manzil, bo‘sh bo‘lsa `BOT_PUBLIC_URL` |
+
+Sayt ko‘pi bilan 60 soniyada yangilanadi. Bot javob bermasa — oxirgi nusxa ko‘rsatiladi.
 
 ## 🛠 /admin — mahsulotlarni qo‘lda kiritish (vaqtinchalik)
 

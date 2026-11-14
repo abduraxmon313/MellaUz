@@ -1,17 +1,15 @@
 import type { MetadataRoute } from "next";
 import { locales } from "@/i18n/config";
 import { siteUrl } from "@/lib/site";
-import { MockCatalogProvider } from "@/lib/catalog/mock-provider";
+import { getCatalog } from "@/lib/catalog/provider";
 
-export const dynamic = "force-static";
+// Mahsulotlar Mini App katalogidan — sitemap soatiga bir yangilanadi.
+export const revalidate = 3600;
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const base = siteUrl();
-  const provider = new MockCatalogProvider();
-  const [categories, products] = await Promise.all([
-    provider.listCategories(),
-    provider.listProducts(),
-  ]);
+  const catalog = await getCatalog();
+  const [categories, products] = await Promise.all([catalog.listCategories(), catalog.listProducts()]);
 
   const entries: MetadataRoute.Sitemap = [];
 
@@ -24,18 +22,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       { url: `${prefix}/contact`, changeFrequency: "monthly", priority: 0.6 },
     );
     for (const category of categories) {
-      entries.push({
-        url: `${prefix}/catalog/${category.slug}`,
-        changeFrequency: "weekly",
-        priority: 0.8,
-      });
+      entries.push({ url: `${prefix}/catalog/${category.slug}`, changeFrequency: "weekly", priority: 0.8 });
     }
     for (const product of products) {
-      entries.push({
-        url: `${prefix}/product/${product.slug}`,
-        changeFrequency: "weekly",
-        priority: 0.7,
-      });
+      entries.push({ url: `${prefix}/product/${product.slug}`, changeFrequency: "weekly", priority: 0.7 });
     }
   }
 

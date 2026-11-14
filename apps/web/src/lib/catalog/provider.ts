@@ -49,6 +49,8 @@ export function toProductView(
     inStock: product.stock > 0,
     images: product.images,
     sizes: product.sizes ?? [],
+    brand: product.brand,
+    specs: product.specs?.[locale] ?? product.specs?.uz ?? [],
   };
 }
 
@@ -65,22 +67,26 @@ let cached: CatalogProvider | null = null;
 
 /**
  * Katalog provayderini tanlaydi.
- * - `ERP_API_BASE_URL` o'rnatilgan bo'lsa — haqiqiy ERP (HTTP) provayderi.
- * - Aks holda — namuna (mock) ma'lumot.
- * - DATABASE_URL bo'lsa — ustiga admin panelda qo'lda kiritilgan mahsulotlar qo'shiladi.
+ * - `BOT_PUBLIC_URL` / `BOT_API_URL` — Mini App katalogi (mella-bot): sayt va Mini App'da bir xil mahsulotlar.
+ * - `ERP_API_BASE_URL` — eski ERP adapteri.
+ * - Hech biri bo'lmasa — bo'sh katalog (namuna mahsulotlar olib tashlangan).
+ * - `SITE_MANUAL_PRODUCTS=true` va DATABASE_URL — ustiga /admin panelda qo'lda kiritilganlar.
  */
 export async function getCatalog(): Promise<CatalogProvider> {
   if (cached) return cached;
 
   let base: CatalogProvider;
-  if (process.env.ERP_API_BASE_URL) {
+  const { BotCatalogProvider, EmptyCatalogProvider, hasBotCatalog } = await import("./bot-provider");
+  if (hasBotCatalog()) {
+    base = new BotCatalogProvider();
+  } else if (process.env.ERP_API_BASE_URL) {
     const { ErpCatalogProvider } = await import("./erp-provider");
     base = new ErpCatalogProvider();
   } else {
-    const { MockCatalogProvider } = await import("./mock-provider");
-    base = new MockCatalogProvider();
+    console.warn("[catalog] BOT_PUBLIC_URL o'rnatilmagan — sayt katalogi bo'sh.");
+    base = new EmptyCatalogProvider();
   }
-  if (process.env.DATABASE_URL) {
+  if (process.env.DATABASE_URL && process.env.SITE_MANUAL_PRODUCTS === "true") {
     const { CombinedCatalogProvider } = await import("./combined-provider");
     cached = new CombinedCatalogProvider(base);
   } else {

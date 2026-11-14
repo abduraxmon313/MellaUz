@@ -1,4 +1,5 @@
 import Image from "next/image";
+import placeholderImg from "@/assets/images/leather-texture.jpg";
 import Link from "next/link";
 import type { Locale } from "@/i18n/config";
 import type { Dictionary } from "@/i18n/dictionaries";
@@ -23,7 +24,8 @@ export function ProductCard({
       <Link href={href} className="block rounded-[1.25rem]" tabIndex={-1} aria-hidden>
         <div className="media-frame aspect-[4/5] transition-shadow duration-500 group-hover:shadow-card">
           <Image
-            src={product.images[0] ?? "/images/products/samarqand-1.jpg"}
+            src={product.images[0] ?? placeholderImg}
+            unoptimized={/^https?:/.test(product.images[0] ?? "")}
             alt=""
             fill
             sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"

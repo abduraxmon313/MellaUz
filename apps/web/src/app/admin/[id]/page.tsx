@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireAdminPage } from "@/lib/admin-auth";
-import { getCatalog } from "@/lib/catalog/provider";
+import { manualCategories } from "@/lib/catalog/site-categories";
 import { getManualProduct } from "@/lib/manual-catalog";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { ProductEditor } from "@/components/admin/ProductEditor";
@@ -17,7 +17,7 @@ export default async function EditProductPage({ params }: PageProps<"/admin/[id]
   if (!/^m-[a-f0-9]{12}$/.test(id)) notFound();
   const product = await getManualProduct(id);
   if (!product) notFound();
-  const categories = (await (await getCatalog()).listCategories()).map((c) => ({ slug: c.slug, name: c.name.uz }));
+  const categories = manualCategories.map((c) => ({ slug: c.slug, name: c.name.uz }));
 
   // ru/en o'zbekcha bilan bir xil bo'lsa — tahrirlashda bo'sh ko'rsatamiz (avto-to'ldirilgan).
   const own = (v: Record<string, string> | null) => {

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { requireAdminPage } from "@/lib/admin-auth";
-import { getCatalog } from "@/lib/catalog/provider";
+import { manualCategories } from "@/lib/catalog/site-categories";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { ProductEditor } from "@/components/admin/ProductEditor";
 
@@ -9,7 +9,7 @@ export const metadata = { title: "Yangi mahsulot" };
 
 export default async function NewProductPage() {
   await requireAdminPage();
-  const categories = (await (await getCatalog()).listCategories()).map((c) => ({ slug: c.slug, name: c.name.uz }));
+  const categories = manualCategories.map((c) => ({ slug: c.slug, name: c.name.uz }));
   return (
     <AdminShell>
       <Link href="/admin" className="btn-link">← Mahsulotlar</Link>
