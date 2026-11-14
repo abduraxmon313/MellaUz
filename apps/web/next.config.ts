@@ -7,11 +7,20 @@ import type { NextConfig } from "next";
  * optimallashtiriladi (webp/avif, o'lcham bo'yicha).
  */
 function erpImagePatterns() {
-  return (process.env.ERP_IMAGE_HOSTS ?? "")
+  const hosts = (process.env.ERP_IMAGE_HOSTS ?? "")
     .split(",")
     .map((host) => host.trim())
-    .filter(Boolean)
-    .map((hostname) => ({ protocol: "https" as const, hostname, pathname: "/**" }));
+    .filter(Boolean);
+  // Mini App (mella-bot) rasmlari: /media/… (AI ishlov bergan) va /img/… (BILLZ keshi).
+  const bot = (process.env.BOT_PUBLIC_URL ?? "").trim();
+  if (bot) {
+    try {
+      hosts.push(new URL(bot).hostname);
+    } catch {
+      console.warn("[next.config] BOT_PUBLIC_URL noto'g'ri:", bot);
+    }
+  }
+  return [...new Set(hosts)].map((hostname) => ({ protocol: "https" as const, hostname, pathname: "/**" }));
 }
 
 const securityHeaders = [

@@ -1,7 +1,7 @@
 import "server-only";
 
 import { revalidatePath } from "next/cache";
-import { getCatalog } from "@/lib/catalog/provider";
+import { manualCategories } from "@/lib/catalog/site-categories";
 import { invalidateManualCache } from "@/lib/catalog/combined-provider";
 import type { Localized } from "@/lib/catalog/types";
 import { saveManualProduct, type ManualInput, type NewImage } from "@/lib/manual-catalog";
@@ -52,7 +52,7 @@ export async function handleSave(req: Request, id: string | null): Promise<Respo
   }
   const p = parsed.data;
 
-  const categories = await (await getCatalog()).listCategories();
+  const categories = manualCategories;
   if (!categories.some((c) => c.slug === p.category)) {
     return json({ ok: false, error: "Bunday kategoriya yo‘q" }, 422);
   }

@@ -3,6 +3,7 @@ import "server-only";
 import type { CatalogProvider } from "./provider";
 import type { Category, ListProductsOptions, Product } from "./types";
 import { getSettings, listManualProducts, type ManualProduct } from "@/lib/manual-catalog";
+import { manualCategories } from "./site-categories";
 
 /**
  * Asosiy katalog (namuna yoki ERP) + admin panelda qo'lda kiritilgan mahsulotlar.
@@ -73,16 +74,19 @@ export class CombinedCatalogProvider implements CatalogProvider {
   private async all(): Promise<Product[]> {
     const manual = await loadManual();
     const slugs = new Set(manual.products.map((p) => p.slug));
-    const base = manual.hideSamples ? [] : (await this.base.listProducts()).filter((p) => !slugs.has(p.slug));
+    const base = (await this.base.listProducts()).filter((p) => !slugs.has(p.slug));
     return [...manual.products, ...base];
   }
 
-  listCategories(): Promise<Category[]> {
-    return this.base.listCategories();
+  async listCategories(): Promise<Category[]> {
+    const base = await this.base.listCategories();
+    const used = new Set((await loadManual()).products.map((p) => p.categorySlug));
+    const extra = manualCategories.filter((c) => used.has(c.slug) && !base.some((b) => b.slug === c.slug));
+    return [...base, ...extra];
   }
 
-  getCategory(slug: string): Promise<Category | null> {
-    return this.base.getCategory(slug);
+  async getCategory(slug: string): Promise<Category | null> {
+    return (await this.listCategories()).find((c) => c.slug === slug) ?? null;
   }
 
   async listProducts(options: ListProductsOptions = {}): Promise<Product[]> {

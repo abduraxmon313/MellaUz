@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { requireAdminPage } from "@/lib/admin-auth";
-import { getCatalog } from "@/lib/catalog/provider";
+import { manualCategories } from "@/lib/catalog/site-categories";
 import { formatPrice } from "@/lib/format";
 import { getSettings, hasMirror, isConfigured, listManualProducts } from "@/lib/manual-catalog";
 import { AdminShell } from "@/components/admin/AdminShell";
@@ -25,7 +25,7 @@ export default async function AdminHome() {
       error = (err as Error).message;
     }
   }
-  const categories = await (await getCatalog()).listCategories();
+  const categories = manualCategories;
   const catName = (slug: string) => categories.find((c) => c.slug === slug)?.name.uz ?? slug;
 
   return (

@@ -10,6 +10,7 @@ import {
   listProducts,
   listShops,
   resolveImageKey,
+  siteCatalog,
   type Sort,
 } from "./catalog/index.js";
 import { createOrder, OrderError, serializeOrder, type OrderInput } from "./orders.js";
@@ -21,6 +22,7 @@ import { bots } from "./telegram.js";
  *   GET  /api/categories
  *   GET  /api/products          ?category=&q=&sort=popular|new|cheap|expensive&ids=a,b
  *   GET  /api/products/:id      to'liq ma'lumot + variantlar (o'lchamlar)
+ *   GET  /api/site/catalog      brend sayti uchun butun ko'rinadigan katalog (3 tilda)
  *   POST /api/orders            buyurtma yaratish (initData majburiy)
  *   GET  /api/orders            mening buyurtmalarim
  *   GET  /api/orders/:id
@@ -170,6 +172,9 @@ export async function registerApi(app: FastifyInstance) {
   });
 
   app.get("/api/shops", async () => listShops());
+
+  // Brend sayti (apps/web) shu yerdan Mini App katalogini oladi — sayt va Mini App'da bir xil mahsulotlar.
+  app.get("/api/site/catalog", async () => siteCatalog());
 
   app.get("/api/categories", async (req) => listCategories(langOf(req), shopOf(req)));
 

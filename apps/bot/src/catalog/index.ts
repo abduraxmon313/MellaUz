@@ -103,13 +103,17 @@ export function loc(v: Localized, lang: Lang): string {
 }
 
 /**
- * BILLZ nomidan oxirgi model raqamini olib tashlaydi: «Lafiera 17» → «Lafiera», «Magza 284» → «Magza».
- * Faqat ajratilgan oxirgi son olinadi; harfsiz nom yoki «Tufli 2024 qora» kabi nomlar o'zgarmaydi.
+ * Mijoz uchun nom: BILLZ nomidagi BIRINCHI raqamdan boshlab hammasi olib tashlanadi.
+ *   «Lafiera 20» → «Lafiera», «Mella kurtka 34 J» → «Mella kurtka», «Magza284» → «Magza».
+ * Nom raqam bilan boshlansa yoki raqamdan oldin harf bo'lmasa — o'zgarmaydi.
  */
 export function stripModelNumber(name: string): string {
-  if (!config.miniappStripModelNumber) return name.trim();
-  const m = name.trim().match(/^(.*\p{L}.*?)[\s\-_#№]+\d+[\p{L}]?$/u);
-  return m ? m[1]!.trim() : name.trim();
+  const full = name.trim();
+  if (!config.miniappStripModelNumber) return full;
+  const i = full.search(/\d/);
+  if (i <= 0) return full;
+  const head = full.slice(0, i).replace(/[\s\-_#№/(.,:;+|]+$/u, "").trim();
+  return /\p{L}/u.test(head) ? head : full;
 }
 
 const SPEC_NAMES: [RegExp, Record<Lang, string>][] = [
@@ -654,4 +658,90 @@ export function getProductDetail(id: string, lang: Lang, shopId?: string) {
 /** Buyurtma yaratishda narx va qoldiq tekshiruvi uchun (BILLZ, namuna va qo'lda kiritilganlar). */
 export function findVariant(variantId: string): { product: Product; variant: Variant } | null {
   return byVariant.get(variantId) ?? null;
+}
+
+// ── Brend sayti uchun katalog (apps/web shu endpoint'dan o'qiydi) ─────────────
+
+const SITE_LANGS: Lang[] = ["uz", "ru", "en"];
+const SITE_MAX_PRODUCTS = 3000;
+
+/** Lotin harflarida URL-slug: «Mella kurtka» → «mella-kurtka», «Обувь» → «obuv». */
+export function slugify(s: string): string {
+  const map: Record<string, string> = {
+    а: "a", б: "b", в: "v", г: "g", д: "d", е: "e", ё: "yo", ж: "j", з: "z", и: "i", й: "y", к: "k", л: "l", м: "m",
+    н: "n", о: "o", п: "p", р: "r", с: "s", т: "t", у: "u", ф: "f", х: "x", ц: "ts", ч: "ch", ш: "sh", щ: "sh", ъ: "",
+    ы: "i", ь: "", э: "e", ю: "yu", я: "ya", ў: "o", қ: "q", ғ: "g", ҳ: "h",
+  };
+  return s
+    .toLowerCase()
+    .replace(/[а-яёўқғҳ]/g, (c) => map[c] ?? "")
+    .replace(/[‘'’`ʻ]/g, "")
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 60);
+}
+
+let siteMemo: { at: number; value: unknown } | null = null;
+
+/**
+ * Saytga Mini App'da ko'rinayotgan mahsulotlarning to'liq ro'yxati (3 tilda), barqaror slug'lar bilan.
+ * Rasmlar nisbiy (/media/…, /img/…) — sayt ularga bot domenini qo'shadi.
+ */
+export function siteCatalog() {
+  if (siteMemo && Date.now() - siteMemo.at < 30_000) return siteMemo.value;
+  const list = all.filter((p) => visible(p)).slice(0, SITE_MAX_PRODUCTS);
+
+  const catSlug = new Map<string, string>();
+  const usedCat = new Set<string>();
+  const categories: { id: string; slug: string; name: Record<Lang, string>; image: string; order: number }[] = [];
+  for (const c of categoriesView) {
+    const name = Object.fromEntries(SITE_LANGS.map((l) => [l, loc(c.name, l)])) as Record<Lang, string>;
+    let slug = slugify(name.uz) || slugify(c.id) || "c";
+    if (usedCat.has(slug)) slug = `${slug}-${slugify(c.id).slice(0, 6)}`;
+    usedCat.add(slug);
+    catSlug.set(c.id, slug);
+    const first = list.find((p) => p.categoryIds[0] === c.id && p.images[0]);
+    categories.push({ id: c.id, slug, name, image: first ? publicImage(first.images[0]) : "", order: c.order });
+  }
+
+  const usedSlug = new Set<string>();
+  const products = list.map((p) => {
+    const name = Object.fromEntries(SITE_LANGS.map((l) => [l, displayName(p, l)])) as Record<Lang, string>;
+    const base = [slugify(name.uz), slugify(p.sku)].filter(Boolean).join("-") || slugify(p.id);
+    let slug = base;
+    if (usedSlug.has(slug)) slug = `${base}-${slugify(p.id).slice(0, 8)}`;
+    usedSlug.add(slug);
+    const best = bestVariant(p);
+    return {
+      id: p.id,
+      slug,
+      sku: p.sku,
+      brand: p.brand,
+      name,
+      description: Object.fromEntries(SITE_LANGS.map((l) => [l, loc(p.description, l)])),
+      specs: Object.fromEntries(
+        SITE_LANGS.map((l) => [l, (p.specs ?? []).map((x) => ({ name: specName(x.name, l), value: x.value }))]),
+      ),
+      categorySlug: catSlug.get(p.categoryIds[0] ?? "") ?? "",
+      price: best.s.price,
+      oldPrice: best.s.oldPrice,
+      stock: totalStock(p),
+      images: p.images.map((u) => publicImage(u)).filter(Boolean),
+      sizes: p.variants.filter((v) => v.label).map((v) => ({ label: v.label, inStock: v.stock > 0 })),
+      featured: p.featured,
+      updatedAt: p.updatedAt,
+    };
+  });
+  // Yangilari birinchi (sayt bosh sahifasi uchun).
+  products.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+
+  const value = {
+    syncedAt: syncedAt || new Date().toISOString(),
+    categories: categories.filter((c) => products.some((p) => p.categorySlug === c.slug)),
+    products,
+  };
+  siteMemo = { at: Date.now(), value };
+  return value;
 }

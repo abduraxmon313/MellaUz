@@ -1,4 +1,5 @@
 import Image from "next/image";
+import placeholderImg from "@/assets/images/leather-texture.jpg";
 import Link from "next/link";
 import type { Locale } from "@/i18n/config";
 import type { CategoryView } from "@/lib/catalog/types";
@@ -21,7 +22,8 @@ export function CategoryCard({
       }`}
     >
       <Image
-        src={category.image}
+        src={category.image || placeholderImg}
+        unoptimized={/^https?:/.test(category.image)}
         alt=""
         fill
         sizes="(max-width: 1024px) 50vw, 25vw"

@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import Image from "next/image";
+import placeholderImg from "@/assets/images/leather-texture.jpg";
 import { notFound } from "next/navigation";
-import { isLocale, locales } from "@/i18n/config";
+import { isLocale } from "@/i18n/config";
 import { getDictionary } from "@/i18n/dictionaries";
 import { getCatalog, toProductView } from "@/lib/catalog/provider";
 import { formatPrice } from "@/lib/format";
@@ -12,20 +13,12 @@ import { Reveal } from "@/components/Reveal";
 import { Breadcrumbs } from "@/components/PageHeader";
 
 
-// Admin panelda qo'shilgan mahsulotlar: saqlanganda darhol, aks holda ko'pi bilan 60 soniyada yangilanadi.
+// Mini App katalogi (narx, qoldiq) ko'pi bilan 60 soniyada yangilanadi.
 export const revalidate = 60;
 
+// Mahsulotlar Mini App katalogidan (BILLZ) keladi — sahifalar birinchi so'rovda yaratilib, keshlanadi.
 export async function generateStaticParams() {
-  const { MockCatalogProvider } = await import("@/lib/catalog/mock-provider");
-  const provider = new MockCatalogProvider();
-  const products = await provider.listProducts();
-  const params: { lang: string; slug: string }[] = [];
-  for (const lang of locales) {
-    for (const product of products) {
-      params.push({ lang, slug: product.slug });
-    }
-  }
-  return params;
+  return [] as { lang: string; slug: string }[];
 }
 
 export async function generateMetadata({
@@ -128,7 +121,8 @@ export default async function ProductPage({
         <div className="grid gap-10 lg:grid-cols-[1.05fr_0.95fr] lg:gap-16">
           <div className="media-frame aspect-[4/5] shadow-card">
             <Image
-              src={view.images[0] ?? "/images/products/samarqand-1.jpg"}
+              src={view.images[0] ?? placeholderImg}
+              unoptimized={/^https?:/.test(view.images[0] ?? "")}
               alt={view.name}
               fill
               priority
@@ -201,6 +195,14 @@ export default async function ProductPage({
                 </dt>
                 <dd className="text-brown">{view.sku}</dd>
               </div>
+              {view.specs.map((s) => (
+                <div key={s.name} className="flex gap-4 py-3.5">
+                  <dt className="w-28 shrink-0 text-[11px] font-semibold uppercase tracking-[0.14em] text-muted">
+                    {s.name}
+                  </dt>
+                  <dd className="text-brown">{s.value}</dd>
+                </div>
+              ))}
               {view.material && (
                 <div className="flex gap-4 py-3.5">
                   <dt className="w-28 shrink-0 text-[11px] font-semibold uppercase tracking-[0.14em] text-muted">
