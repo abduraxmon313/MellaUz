@@ -54,6 +54,8 @@ interface BillzProductRaw {
   photos?: { photo_url: string; sequence?: number; is_main?: boolean }[] | null;
   categories?: BillzCategoryRef[] | null;
   product_attributes?: { attribute_name?: string; attribute_value?: string }[] | null;
+  /** Kompaniyaning o'z xususiyatlari (masalan «Размер»: «size50», «Цвет», «Материал»). */
+  custom_fields?: { custom_field_name?: string; custom_field_value?: string }[] | null;
   product_type_id?: string;
   shop_measurement_values?: { shop_id: string; shop_name?: string; active_measurement_value: number | string }[] | null;
   shop_prices?:
@@ -77,6 +79,8 @@ export interface SlimProduct {
   categoryIds: string[];
   categoryNames: string[];
   attrs: { name: string; value: string }[];
+  /** BILLZ custom_fields (bo'sh qiymatlarsiz). */
+  fields: { name: string; value: string }[];
   isService: boolean;
   /** shopId → [narx, aksiya narxi (0 — yo'q)] */
   prices: Record<string, [number, number]>;
@@ -137,6 +141,9 @@ function slim(p: BillzProductRaw): SlimProduct {
     attrs: (p.product_attributes ?? [])
       .map((a) => ({ name: String(a.attribute_name ?? "").trim(), value: String(a.attribute_value ?? "").trim() }))
       .filter((a) => a.value),
+    fields: (p.custom_fields ?? [])
+      .map((f) => ({ name: String(f.custom_field_name ?? "").trim(), value: String(f.custom_field_value ?? "").trim() }))
+      .filter((f) => f.name && f.value),
     isService: p.product_type_id === SERVICE_TYPE_ID,
     prices,
     stocks,
@@ -312,8 +319,56 @@ function totalAllowedStock(p: SlimProduct) {
   return Object.entries(p.stocks).reduce((s, [id, v]) => (allowedShop(id) ? s + v : s), 0);
 }
 
+// ── O'lcham va xususiyatlar ─────────────────────────────────
+
+/** O'lcham maydoni nomi: «Размер», «Size», «O‘lcham», «Razmer»… */
+const SIZE_NAME = /(размер|razmer|size|o[‘'’`ʻ]?lcham|ўлчам|ulcham)/i;
+
+export function isSizeName(name: string) {
+  return SIZE_NAME.test(name);
+}
+
+/** «size50» → «50», «Size 42» → «42», «Размер: 38» → «38», «XL» → «XL». */
+export function cleanSize(v: string): string {
+  const s = v.trim();
+  const m = s.match(/^(?:size|razmer|размер|o[‘'’`ʻ]?lcham|r)\s*[-:.#№]?\s*(.+)$/i);
+  return (m ? m[1]! : s).trim();
+}
+
+/** Tovarning o'lchami: avval variatsiya atributidan, keyin kompaniya xususiyatidan (custom_fields). */
+export function sizeOf(c: Pick<SlimProduct, "attrs" | "fields">): string {
+  const a = c.attrs.find((x) => isSizeName(x.name)) ?? c.fields.find((x) => isSizeName(x.name));
+  return a ? cleanSize(a.value) : "";
+}
+
+/** Ichki (mijozga ko'rsatilmaydigan) maydonlar: yetkazib beruvchi, tannarx, kodlar, izohlar. */
+const INTERNAL_FIELD =
+  /(поставщ|supplier|yetkazib\s*beruvchi|себестоим|закуп|tannarx|cost|price|цена|narx|штрих|barcode|артикул|sku|комментар|izoh|note|internal|ichki)/i;
+
+/** Mijozga ko'rsatiladigan xususiyatlar (o'lchamdan tashqari). Variantlarda farq qilsa — qiymatlar birlashtiriladi. */
+function specsOf(list: SlimProduct[]): { name: string; value: string }[] {
+  const hidden = new Set(
+    String(process.env.MINIAPP_HIDDEN_FIELDS ?? "")
+      .split(",")
+      .map((x) => x.trim().toLowerCase())
+      .filter(Boolean),
+  );
+  const by = new Map<string, Set<string>>();
+  for (const c of list) {
+    for (const f of [...c.attrs, ...c.fields]) {
+      if (!f.name || isSizeName(f.name) || INTERNAL_FIELD.test(f.name) || hidden.has(f.name.toLowerCase())) continue;
+      const set = by.get(f.name) ?? new Set<string>();
+      set.add(f.value);
+      by.set(f.name, set);
+    }
+  }
+  return [...by.entries()].slice(0, 12).map(([name, v]) => ({ name, value: [...v].slice(0, 8).join(", ") }));
+}
+
 function labelOf(c: SlimProduct, baseName: string): string {
-  if (c.attrs.length) return c.attrs.map((a) => a.value).join(" / ");
+  const size = sizeOf(c);
+  const other = c.attrs.filter((a) => !isSizeName(a.name)).map((a) => a.value);
+  if (size || other.length) return [...other, size].filter(Boolean).join(" / ");
   if (baseName && c.name.length > baseName.length && c.name.startsWith(baseName)) {
     const rest = c.name.slice(baseName.length).replace(/^[\s/|,-]+/, "").trim();
     if (rest) return rest;
@@ -374,7 +429,8 @@ export function buildIndex(items: SlimProduct[], tree: BillzCategoryNode[], shop
     const variants: Variant[] = members
       .map((c, i) => {
         const pr = defaultPrice(c);
-        let label = multi ? labelOf(c, baseName) : "";
+        // Bitta tovar bo'lsa ham o'lchami bo'lsa — ko'rsatamiz (mijoz qaysi o'lcham ekanini bilsin).
+        let label = multi ? labelOf(c, baseName) : sizeOf(c);
         if (multi && !label) label = c.sku || c.barcode || `#${i + 1}`;
         return {
           id: c.id,
@@ -422,7 +478,10 @@ export function buildIndex(items: SlimProduct[], tree: BillzCategoryNode[], shop
       for (const u of s.images) if (!images.includes(u)) images.push(u);
     }
 
-    const attributeNames = [...new Set(members.flatMap((c) => c.attrs.map((a) => a.name)))].filter(Boolean);
+    // O'lcham sarlavhasi Mini App'da mijoz tilida («O‘lcham» / «Размер» / «Size») — shuning uchun bu yerda bo'sh.
+    const attributeNames = [
+      ...new Set(members.flatMap((c) => c.attrs.map((a) => a.name)).filter((n) => n && !isSizeName(n))),
+    ];
     const updatedAt = [parent, ...members]
       .map((x) => x?.updatedAt ?? "")
       .filter(Boolean)
@@ -439,6 +498,7 @@ export function buildIndex(items: SlimProduct[], tree: BillzCategoryNode[], shop
       images: images.slice(0, 10),
       variants,
       attributeNames,
+      specs: specsOf(parent ? [parent, ...members] : members),
       featured: false,
       updatedAt: updatedAt ? new Date(updatedAt.replace(" ", "T") + "Z").toISOString() : new Date(0).toISOString(),
     });

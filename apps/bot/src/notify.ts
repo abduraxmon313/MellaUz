@@ -4,6 +4,7 @@ import { store, type Order } from "./store.js";
 import { statusText, t } from "./i18n.js";
 import { esc, money } from "./util.js";
 import { orderCardKeyboard, orderCardText } from "./admin/card.js";
+import { allAdminIds } from "./admins.js";
 
 /** Kartalar qaysi bot orqali yuboriladi: admin bot, bo'lmasa mijoz boti (zaxira). */
 function staffBot() {
@@ -29,14 +30,15 @@ export async function notifyNewOrder(order: Order) {
   // 2) Adminlarga karta.
   const bot = staffBot();
   if (!bot) return;
-  if (!config.adminIds.length) {
+  const adminIds = allAdminIds();
+  if (!adminIds.length) {
     console.warn("[notify] ADMIN_IDS bo'sh — yangi buyurtma hech kimga yuborilmadi!");
     return;
   }
   const text = orderCardText(order);
   const kb = orderCardKeyboard(order);
   await Promise.all(
-    config.adminIds.map(async (chatId) => {
+    adminIds.map(async (chatId) => {
       try {
         const m = await bot.api.sendMessage(chatId, text, { parse_mode: "HTML", reply_markup: kb });
         await store.addAdminCard({ orderId: order.id, chatId, messageId: m.message_id });

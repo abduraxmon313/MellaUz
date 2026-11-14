@@ -436,6 +436,10 @@ body.has-fab-cart .home-scroll { padding-bottom: 112px; }
 .pd-price { font-size: 23.5px; font-weight: 700; letter-spacing: -.01em; }
 .pd-old { font-size: 15px; color: var(--muted); text-decoration: line-through; }
 .pd-sku { font-size: 12px; color: var(--muted); letter-spacing: .08em; margin-top: 4px; }
+.pd-specs { margin: 14px 0 4px; border-top: 1px solid rgba(255,255,255,.08); }
+.pd-spec { display: flex; justify-content: space-between; gap: 12px; padding: 9px 0; border-bottom: 1px solid rgba(255,255,255,.08); font-size: 14px; }
+.pd-spec span { color: var(--muted); }
+.pd-spec b { font-weight: 600; text-align: right; }
 .pd-desc { color: var(--text-2); font-size: 15px; line-height: 1.7; margin: 14px 0 4px; white-space: pre-line; }
 .pd-meta { font-size: 14px; font-weight: 600; color: var(--success); margin: 12px 0 14px; display: inline-flex; align-items: center; gap: 6px; }
 .pd-meta svg { width: 16px; height: 16px; }

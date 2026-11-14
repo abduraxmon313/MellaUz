@@ -71,7 +71,7 @@ assert.equal(heel.old_price, 890000);
 assert.equal(heel.images.length, 2);
 assert.equal(getProductDetail("V-HEEL-38", "uz")?.id, "P-HEEL", "variant ID bo'yicha ham topiladi");
 
-const magza = page1.products.find((p) => p.name === "Magza 284")!;
+const magza = page1.products.find((p) => p.name === "Magza")!; // Mini App nomi model raqamisiz
 const mz = getProductDetail(magza.id, "uz")!;
 assert.deepEqual(mz.variants.map((v) => v.label), ["38", "39"], "alohida tovar qilib kiritilgan o'lchamlar birlashtiriladi");
 

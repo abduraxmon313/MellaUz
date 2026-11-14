@@ -95,6 +95,8 @@ export const config = {
   // Sayt /admin panelida qo'lda kiritilgan (eski, vaqtinchalik) mahsulotlarni Mini App'da ko'rsatish.
   // Sukut — yo'q: Mini App'da faqat BILLZ mahsulotlari (admin bot orqali tasdiqlangan).
   miniappManualProducts: bool(process.env.MINIAPP_MANUAL_PRODUCTS, false),
+  // Mini App'da nomdan model raqamini olib tashlash: «Lafiera 17» → «Lafiera». Admin nomni o'zi ham bera oladi.
+  miniappStripModelNumber: bool(process.env.MINIAPP_STRIP_MODEL_NUMBER, true),
 
   // ── OpenAI (admin botda mahsulot rasmining fonini tozalash) ──
   openai: {

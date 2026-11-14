@@ -10,6 +10,7 @@ import { bots } from "./telegram.js";
 import { store } from "./store.js";
 import { catalogStatus, initCatalog } from "./catalog/index.js";
 import { registerApi } from "./api.js";
+import { loadAdmins } from "./admins.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // dist/ dan ishga tushganda public/ bir pog'ona yuqorida bo'ladi
@@ -69,6 +70,7 @@ export async function buildServer() {
 export async function start() {
   await store.init();
   console.log(`[store] ${store.kind}${store.kind === "memory" ? " (DATABASE_URL yo'q — ma'lumotlar saqlanmaydi!)" : ""}`);
+  await loadAdmins();
   await initCatalog();
 
   const { app, bot, adminBot } = await buildServer();

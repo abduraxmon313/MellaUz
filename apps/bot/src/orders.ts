@@ -1,5 +1,5 @@
 import { config } from "./config.js";
-import { findVariant, loc, publicImage } from "./catalog/index.js";
+import { displayName, findVariant, publicImage } from "./catalog/index.js";
 import { store, type Lang, type Order, type OrderItem, type OrderStatus } from "./store.js";
 import { isValidPhone, normPhone } from "./util.js";
 import { notifyCustomerStatus, notifyNewOrder, refreshAdminCards } from "./notify.js";
@@ -81,7 +81,8 @@ export async function createOrder(
     const found = findVariant(variantId);
     if (!found) throw err(lang, "gone");
     const { product, variant } = found;
-    const name = loc(product.name, lang);
+    // Mijozga ko'rinadigan nom (model raqamisiz); admin kartasida SKU alohida ko'rsatiladi.
+    const name = displayName(product, lang);
     const title = variant.label ? `${name} (${variant.label})` : name;
     if (variant.stock < qty) {
       throw variant.stock > 0 ? err(lang, "low", { name: title, n: variant.stock }) : err(lang, "sold_out", { name: title });
