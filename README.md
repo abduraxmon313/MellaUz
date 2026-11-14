@@ -90,6 +90,19 @@ Shuning uchun Mini App’da **faqat admin tasdiqlagan** BILLZ mahsulotlari ko‘
    Yana rasm yuborilsa — galereyaga qo‘shiladi (10 tagacha). Kodni qayta yuborib mahsulotni
    **yashirish / qayta ko‘rsatish** yoki **rasmlarini o‘chirish** mumkin.
 
+**O‘lchamlar** BILLZ’dagi «Размер» maydonidan olinadi — variatsiya atributi yoki kompaniya xususiyati
+(`custom_fields`); «size50» → «50». Topilmasa (o‘lcham kiritilmagan) — shtrix-kod oxiri. Tekshirish: admin botda
+`/info <SKU>` — BILLZ qaytargan xom atribut va xususiyatlar hamda aniqlangan o‘lcham.
+
+**Mini App’dagi nom** — BILLZ nomidan model raqamisiz («Lafiera 17» → «Lafiera»; `MINIAPP_STRIP_MODEL_NUMBER=false`
+bilan o‘chiriladi). Admin kartasida **✏️ Nomi** va **📝 Tavsif** tugmalari bilan o‘z nomi/tavsifini berish mumkin.
+Mahsulot oynasida model (SKU), brend, tavsif va xususiyatlar (rang, material…) ko‘rinadi; ichki maydonlar
+(yetkazib beruvchi, tannarx…) ko‘rsatilmaydi, qo‘shimchalari `MINIAPP_HIDDEN_FIELDS` bilan yashiriladi.
+
+**Adminlar.** `ADMIN_IDS` — egalar. Egalar admin botda **👥 Adminlar** (`/admins`) orqali admin qo‘shadi
+(Telegram’dan tanlash yoki ID) va olib tashlaydi. Begona odam admin botga `/start` yozsa, egalarga
+«✅ Admin qilish» tugmali so‘rov keladi. Qo‘shilgan adminlar bazada saqlanadi, buyurtma kartalari ularga ham boradi.
+
 Jadvallar avtomatik yaratiladi: `billz_listings`, `billz_listing_images`. Eski xatti-harakat
 (barcha BILLZ mahsulotlari ko‘rinadi) kerak bo‘lsa: `BILLZ_REQUIRE_APPROVAL=false`.
 Bu oqim faqat alohida admin botda (`BOT_ADMIN_TOKEN`) ishlaydi.

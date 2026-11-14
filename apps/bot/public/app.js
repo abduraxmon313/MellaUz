@@ -97,6 +97,7 @@ const I18N = {
   from: { uz: 'dan', ru: 'от', en: 'from' },
   out_of_stock: { uz: 'Tugagan', ru: 'Нет в наличии', en: 'Sold out' },
   in_stock: { uz: 'Mavjud', ru: 'В наличии', en: 'In stock' },
+  model: { uz: 'Model', ru: 'Модель', en: 'Model' },
   low_stock: { uz: 'Oxirgi {n} dona', ru: 'Осталось {n} шт', en: 'Only {n} left' },
   count_items: { uz: '{n} ta', ru: '{n} шт', en: '{n} items' },
   no_products: { uz: 'Mahsulot topilmadi', ru: 'Ничего не найдено', en: 'Nothing found' },
@@ -521,13 +522,14 @@ async function openProduct(id) {
     <div class="pd-tags">${p.category ? `<span class="tag">${esc(p.category)}</span>` : ''}<span id="pdSale"></span></div>
     <div class="pd-name">${esc(p.name)}</div>
     <div class="pd-price-row"><span class="pd-price" id="pdPrice"></span><span class="pd-old" id="pdOld"></span></div>
-    ${p.sku ? `<div class="pd-sku">${esc(p.sku)}${p.brand ? ' · ' + esc(p.brand) : ''}</div>` : ''}
+    ${p.sku ? `<div class="pd-sku">${L('model')}: ${esc(p.sku)}${p.brand ? ' · ' + esc(p.brand) : ''}</div>` : ''}
     ${hasChoice ? `<div class="var-block" id="varBlock">
       <div class="var-head"><span class="var-title">${esc(attrName)}</span><span class="var-hint" id="varHint"></span></div>
       <div class="var-list">${variants.map((v) => `<button type="button" class="var-chip ${v.in_stock ? '' : 'out'}" data-vid="${escAttr(v.id)}" ${v.in_stock ? '' : 'disabled'}>${esc(v.label || '—')}</button>`).join('')}</div>
     </div>` : ''}
     <div id="pdStock"></div>
     ${p.description ? `<div class="pd-desc">${esc(p.description)}</div>` : ''}
+    ${(p.specs && p.specs.length) ? `<div class="pd-specs">${p.specs.map((x) => `<div class="pd-spec"><span>${esc(x.name)}</span><b>${esc(x.value)}</b></div>`).join('')}</div>` : ''}
     <div style="height:14px"></div>
     <div class="stepper" id="pdStepper" ${p.in_stock ? '' : 'hidden'}>
       <span class="st-lbl">${L('qty_label')}</span>

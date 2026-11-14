@@ -8,6 +8,8 @@ import { billzPing } from "../billz/client.js";
 import { esc, money, tashkentDate } from "../util.js";
 import { ADMIN_STATUS, CANCEL_REASONS, orderCardKeyboard, orderCardText, reasonKeyboard } from "./card.js";
 import { BTN_ADD, productComposer } from "./products.js";
+import { BTN_ADMINS, requestAccess, setMenu, teamComposer } from "./team.js";
+import { isAdmin, isOwner } from "../admins.js";
 
 /**
  * Admin bot — buyurtmalarni boshqarish.
@@ -28,20 +30,14 @@ const BTN_SYNC = "🔄 Katalog (BILLZ)";
 /** Admin "boshqa sabab" yozayotgan bo'lsa: adminId → buyurtma va holat. */
 const pendingReason = new Map<number, { orderId: number; status: OrderStatus }>();
 
-const isAdmin = (id: number | undefined) => Boolean(id && config.adminIds.includes(id));
 
-function adminMenu() {
-  return new Keyboard()
-    .text(BTN_ADD)
-    .row()
-    .text(BTN_ACTIVE)
-    .text(BTN_NEW)
-    .row()
-    .text(BTN_TODAY)
-    .text(BTN_SYNC)
-    .resized()
-    .persistent();
+function adminMenu(ctx?: Context) {
+  const kb = new Keyboard().text(BTN_ADD).row().text(BTN_ACTIVE).text(BTN_NEW).row().text(BTN_TODAY).text(BTN_SYNC);
+  // «Adminlar» tugmasi — faqat egalarga (ADMIN_IDS).
+  if (isOwner(ctx?.from?.id)) kb.row().text(BTN_ADMINS);
+  return kb.resized().persistent();
 }
+setMenu(adminMenu);
 
 function parseStatus(s: string | undefined): OrderStatus | null {
   return s && (ORDER_STATUSES as readonly string[]).includes(s) ? (s as OrderStatus) : null;
@@ -204,24 +200,20 @@ export function createAdminBot(): Bot | null {
   if (!config.adminBotToken) return null;
   const bot = new Bot(config.adminBotToken);
 
-  // Ruxsat: faqat ADMIN_IDS. Boshqalarga ID'sini ko'rsatamiz (sozlash oson bo'lsin).
+  // Ruxsat: egalar (ADMIN_IDS) va ular qo'shgan adminlar. Begonaga ID'si ko'rsatiladi va egalarga so'rov boradi.
   bot.use(async (ctx, next) => {
     if (isAdmin(ctx.from?.id)) return next();
     if (ctx.callbackQuery) return ctx.answerCallbackQuery({ text: "Ruxsat yo‘q", show_alert: true });
-    if (ctx.chat?.type === "private") {
-      await ctx.reply(
-        `⛔ Bu MELLA admin boti.\n\nSizning Telegram ID: <code>${ctx.from?.id}</code>\nAdmin bo‘lish uchun ushbu ID'ni do‘kon egasiga yuboring (ADMIN_IDS ga qo‘shiladi).`,
-        { parse_mode: "HTML" },
-      );
-    }
+    if (ctx.chat?.type === "private" && ctx.from) await requestAccess(ctx);
   });
 
+  bot.use(teamComposer());
   bot.use(callbackHandlers());
 
   bot.command("start", async (ctx) => {
     await ctx.reply(
       `👋 Salom, ${esc(ctx.from?.first_name ?? "")}! MELLA admin paneli.\n\nYangi buyurtmalar shu yerga keladi. Tugmalar orqali holatini o‘zgartiring — mijozga avtomatik xabar boradi.\n\n${BTN_ADD}: BILLZ kodini yuboring → rasm yuboring → AI fonini tozalaydi → tasdiqlang, mahsulot Mini App’da chiqadi.`,
-      { parse_mode: "HTML", reply_markup: adminMenu() },
+      { parse_mode: "HTML", reply_markup: adminMenu(ctx) },
     );
   });
   bot.command("orders", (ctx) => sendCards(ctx, ACTIVE_STATUSES, "✨ Faol buyurtmalar yo‘q."));
@@ -272,6 +264,8 @@ export async function setupAdminWebhook(bot: Bot) {
       { command: "today", description: "Bugungi hisobot" },
       { command: "sync", description: "BILLZ katalogini yangilash" },
       { command: "billz", description: "BILLZ ulanishi va do‘konlar" },
+      { command: "info", description: "BILLZ’dagi xom ma’lumot (SKU bo‘yicha)" },
+      { command: "admins", description: "Adminlar (faqat egasi)" },
     ])
     .catch(() => undefined);
   // Admin botda Mini App menyusi kerak emas — standart menyu.

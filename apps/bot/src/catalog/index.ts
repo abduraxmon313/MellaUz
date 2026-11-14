@@ -102,6 +102,37 @@ export function loc(v: Localized, lang: Lang): string {
   return v[lang] || v.uz || v.ru || v.en || "";
 }
 
+/**
+ * BILLZ nomidan oxirgi model raqamini olib tashlaydi: «Lafiera 17» → «Lafiera», «Magza 284» → «Magza».
+ * Faqat ajratilgan oxirgi son olinadi; harfsiz nom yoki «Tufli 2024 qora» kabi nomlar o'zgarmaydi.
+ */
+export function stripModelNumber(name: string): string {
+  if (!config.miniappStripModelNumber) return name.trim();
+  const m = name.trim().match(/^(.*\p{L}.*?)[\s\-_#№]+\d+[\p{L}]?$/u);
+  return m ? m[1]!.trim() : name.trim();
+}
+
+const SPEC_NAMES: [RegExp, Record<Lang, string>][] = [
+  [/^(цвет|rang|color|colour)$/i, { uz: "Rang", ru: "Цвет", en: "Color" }],
+  [/^(материал|material|matolar?)$/i, { uz: "Material", ru: "Материал", en: "Material" }],
+  [/^(материал верха|ustki material)$/i, { uz: "Ustki material", ru: "Материал верха", en: "Upper" }],
+  [/^(подошва|taglik)$/i, { uz: "Taglik", ru: "Подошва", en: "Sole" }],
+  [/^(сезон|mavsum|season)$/i, { uz: "Mavsum", ru: "Сезон", en: "Season" }],
+  [/^(страна|страна производства|ishlab chiqaruvchi davlat|country)$/i, { uz: "Ishlab chiqarilgan", ru: "Страна", en: "Made in" }],
+  [/^(высота каблука|каблук|poshna|heel)$/i, { uz: "Poshna", ru: "Каблук", en: "Heel" }],
+];
+
+/** BILLZ xususiyat nomini mijoz tiliga o'giradi (ma'lum nomlar uchun). */
+function specName(name: string, lang: Lang): string {
+  const hit = SPEC_NAMES.find(([re]) => re.test(name.trim()));
+  return hit ? hit[1][lang] : name;
+}
+
+/** Mini App'dagi nom: admin bergan nom, bo'lmasa BILLZ nomi model raqamisiz. */
+export function displayName(p: Product, lang: Lang): string {
+  return p.title || stripModelNumber(loc(p.name, lang));
+}
+
 // ── Qo'lda kiritilgan mahsulotlar ───────────────────────────
 
 /** Qo'lda kiritilgan variant ID'lari "m-" bilan boshlanadi — BILLZ'ga yuborilmaydi. */
@@ -194,7 +225,13 @@ function applyListings(list: Product[]): Product[] {
     }
     // Yangi tasdiqlangan mahsulot "Yangi" saralashda oldinda chiqsin.
     const updatedAt = l.createdAt > p.updatedAt ? l.createdAt : p.updatedAt;
-    out.push({ ...p, images: l.imageIds.map((id) => `/media/${id}`), updatedAt });
+    out.push({
+      ...p,
+      images: l.imageIds.map((id) => `/media/${id}`),
+      title: l.title || undefined,
+      description: l.description || p.description,
+      updatedAt,
+    });
   }
   return out;
 }
@@ -526,7 +563,7 @@ export function serializeCard(p: Product, lang: Lang, shopId?: string) {
   const prices = new Set(p.variants.map((v) => vs(v, shopId).price).filter((x) => x > 0));
   return {
     id: p.id,
-    name: loc(p.name, lang),
+    name: displayName(p, lang),
     category: catName(p.categoryIds[0] ?? "", lang),
     price: best.s.price,
     old_price: best.s.oldPrice,
@@ -558,7 +595,7 @@ export function listProducts(
   const q = (opts.q ?? "").trim().toLowerCase();
   if (q) {
     list = list.filter((p) =>
-      [loc(p.name, lang), p.sku, p.brand, ...p.variants.map((v) => `${v.sku} ${v.barcode}`)]
+      [loc(p.name, lang), p.title ?? "", p.sku, p.brand, ...p.variants.map((v) => `${v.sku} ${v.barcode}`)]
         .join(" ")
         .toLowerCase()
         .includes(q),
@@ -606,6 +643,7 @@ export function getProductDetail(id: string, lang: Lang, shopId?: string) {
     sku: p.sku,
     images: p.images.map((u) => publicImage(u)),
     attribute_name: p.attributeNames.join(" / "),
+    specs: (p.specs ?? []).map((x) => ({ name: specName(x.name, lang), value: x.value })),
     variants: p.variants.map((v) => {
       const s = vs(v, shopId);
       return { id: v.id, label: v.label, price: s.price, old_price: s.oldPrice, stock: s.stock, in_stock: s.stock > 0 };

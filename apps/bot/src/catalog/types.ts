@@ -43,6 +43,10 @@ export interface Product {
   variants: Variant[];
   /** Atribut nomlari (masalan "O'lcham") — variant tanlagich sarlavhasi uchun. */
   attributeNames: string[];
+  /** Xususiyatlar (rang, material…) — mahsulot oynasida ko'rsatiladi. */
+  specs?: { name: string; value: string }[];
+  /** Mijozga ko'rinadigan nom (admin bergan yoki BILLZ nomidan model raqamisiz). Bo'sh — `name`. */
+  title?: string;
   featured: boolean;
   updatedAt: string;
 }

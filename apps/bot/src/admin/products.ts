@@ -10,11 +10,13 @@ import {
   loc,
   refreshListings,
   billzStock,
+  stripModelNumber,
   type BillzStockReport,
 } from "../catalog/index.js";
 import type { Product } from "../catalog/types.js";
 import { AiImageError, cleanProductPhoto } from "../ai/image.js";
 import { esc, money } from "../util.js";
+import { fetchByCode, isSizeName, sizeOf } from "../billz/catalog.js";
 
 /**
  * Admin bot: BILLZ mahsulotini Mini App'ga qo'shish.
@@ -45,6 +47,8 @@ interface Session {
 }
 
 const sessions = new Map<number, Session>();
+/** Admin nom yoki tavsif yozayotgan bo'lsa: adminId → mahsulot va maydon. */
+const pendingEdit = new Map<number, { key: string; field: "title" | "description" }>();
 let tokenSeq = 0;
 
 const safetyId = (adminId: number) => createHash("sha256").update(`mella-admin:${adminId}`).digest("hex").slice(0, 32);
@@ -72,12 +76,18 @@ async function productText(p0: Product): Promise<string> {
       : l.imageIds.length
         ? `🚫 Yashirilgan · ${l.imageIds.length} ta rasm`
         : "⏳ Rasm yo‘q";
+  const title = l?.title || stripModelNumber(loc(p.name, "uz"));
+  const desc = (l?.description || loc(p.description, "uz")).trim();
+  const specs = (p.specs ?? []).map((x) => `${esc(x.name)}: ${esc(x.value)}`).join("; ");
   return [
     `📦 <b>${esc(loc(p.name, "uz"))}</b>`,
+    `Mini App’da nomi: <b>${esc(title)}</b>${l?.title ? " <i>(siz bergan)</i>" : ""}`,
     p.sku ? `Artikul: <code>${esc(p.sku)}</code>` : "",
     p.brand ? `Brend: ${esc(p.brand)}` : "",
     `Narx: <b>${min === max ? money(min) : `${money(min)} – ${money(max)}`}</b>`,
     sizes ? `O‘lchamlar (dona): ${sizes}` : "",
+    specs ? `Xususiyatlar: ${specs}` : "",
+    `Tavsif: ${desc ? `<i>${esc(desc.slice(0, 200))}${desc.length > 200 ? "…" : ""}</i>${l?.description ? " <i>(siz yozgan)</i>" : ""}` : "— <i>(yo‘q)</i>"}`,
     rep ? stockText(rep) : "",
   ]
     .filter(Boolean)
@@ -118,6 +128,7 @@ function productKeyboard(p: Product) {
   if (l && l.imageIds.length) {
     if (l.published) kb.text("🚫 Mini App’dan yashirish", `pp:h:${p.id}`);
     else kb.text("👁 Mini App’da ko‘rsatish", `pp:v:${p.id}`);
+    kb.row().text("✏️ Nomi", `pp:et:${p.id}`).text("📝 Tavsif", `pp:ed:${p.id}`);
     kb.row().text("🗑 Rasmlarni o‘chirish", `pp:c:${p.id}`);
   }
   return kb;
@@ -471,8 +482,56 @@ export function productComposer() {
   });
 
   // Boshqa har qanday matn — BILLZ kodi deb qabul qilinadi.
+  // ── Mini App nomi / tavsifi ──
+  c.callbackQuery(/^pp:(et|ed):(.+)$/, async (ctx) => {
+    const p = getBaseProduct(ctx.match[2]!);
+    const l = p ? listingFor(p) : null;
+    if (!p || !l) return void (await ctx.answerCallbackQuery({ text: "Avval rasm qo‘shing", show_alert: true }));
+    const field = ctx.match[1] === "et" ? "title" : "description";
+    pendingEdit.set(ctx.from.id, { key: l.key, field });
+    await ctx.answerCallbackQuery();
+    await ctx.reply(
+      field === "title"
+        ? `✏️ Mini App’dagi yangi nomni yozing (hozir: «${esc(l.title || stripModelNumber(loc(p.name, "uz")))}»).\nAvtomatik nomga qaytarish uchun <code>-</code> yuboring.`
+        : "📝 Mahsulot tavsifini bitta xabarda yozing (material, rang, o‘lcham bo‘yicha maslahat va h.k.).\nBILLZ tavsifiga qaytarish uchun <code>-</code> yuboring.",
+      { parse_mode: "HTML" },
+    );
+  });
+
+  // /info <SKU> — BILLZ'dagi xom xususiyatlar (o'lcham qayerda turganini tekshirish uchun).
+  c.command("info", async (ctx) => {
+    const code = String(ctx.match ?? "").trim();
+    if (!code) return void (await ctx.reply("Foydalanish: <code>/info 16012</code> (SKU yoki shtrix-kod)", { parse_mode: "HTML" }));
+    if (!hasBillz) return void (await ctx.reply("BILLZ_SECRET_TOKEN o‘rnatilmagan."));
+    let items;
+    try {
+      items = await fetchByCode(code);
+    } catch (e) {
+      return void (await ctx.reply(`⚠️ BILLZ xatosi: ${esc((e as Error).message)}`, { parse_mode: "HTML" }));
+    }
+    if (!items.length) return void (await ctx.reply("BILLZ’da topilmadi."));
+    const lines = items.slice(0, 10).map((it) => {
+      const a = it.attrs.map((x) => `${esc(x.name)}=${esc(x.value)}`).join(", ") || "—";
+      const f = it.fields.map((x) => `${isSizeName(x.name) ? "📏" : ""}${esc(x.name)}=${esc(x.value)}`).join(", ") || "—";
+      return `• <b>${esc(it.name)}</b> · <code>${esc(it.barcode || it.sku)}</code>\n  atributlar: ${a}\n  xususiyatlar: ${f}\n  ➜ o‘lcham: <b>${esc(sizeOf(it) || "aniqlanmadi")}</b>`;
+    });
+    await ctx.reply(`🔎 BILLZ «${esc(code)}» (${items.length} ta):\n\n${lines.join("\n\n")}`.slice(0, 4000), { parse_mode: "HTML" });
+  });
+
   c.on("message:text", async (ctx, next) => {
     const text = ctx.message.text.trim();
+    const edit = pendingEdit.get(ctx.from.id);
+    if (edit && text && !text.startsWith("/")) {
+      pendingEdit.delete(ctx.from.id);
+      const value = text === "-" ? "" : text.slice(0, edit.field === "title" ? 80 : 2000);
+      await store.setListingText(edit.key, { [edit.field]: value });
+      await refreshListings();
+      const p = getBaseProduct(edit.key) ?? findByCode(edit.key).products[0];
+      await ctx.reply(edit.field === "title" ? "✅ Nomi saqlandi." : "✅ Tavsif saqlandi.");
+      if (p) await ctx.reply(await productText(p), { parse_mode: "HTML", reply_markup: productKeyboard(p) });
+      return;
+    }
+    if (text.startsWith("/")) pendingEdit.delete(ctx.from.id);
     if (!text || text.startsWith("/")) return next();
     const p = await lookup(ctx, text.slice(0, 100));
     if (p) await showProduct(ctx, p);

@@ -133,6 +133,10 @@ export interface Listing {
   name: string;
   published: boolean;
   imageIds: string[];
+  /** Admin bergan Mini App nomi (bo'sh — BILLZ nomidan model raqamisiz). */
+  title: string;
+  /** Admin yozgan tavsif (bo'sh — BILLZ tavsifi). */
+  description: string;
   createdBy: number;
   createdAt: string;
   updatedAt: string;
@@ -181,6 +185,7 @@ export interface Store {
   /** Barcha rasmlarni o'chiradi va mahsulotni yashiradi. */
   clearListingImages(key: string): Promise<void>;
   getListingImage(id: string): Promise<Media | null>;
+  setListingText(key: string, patch: { title?: string; description?: string }): Promise<void>;
 }
 
 const nowIso = () => new Date().toISOString();
@@ -316,6 +321,8 @@ class MemoryStore implements Store {
       ...l,
       published: true,
       imageIds: [...(cur?.imageIds ?? []), id],
+      title: cur?.title ?? "",
+      description: cur?.description ?? "",
       createdBy: cur?.createdBy ?? l.createdBy,
       createdAt: cur?.createdAt ?? t,
       updatedAt: t,
@@ -335,6 +342,10 @@ class MemoryStore implements Store {
   async getListingImage(id: string) {
     const m = this.listingImages.get(id);
     return m ? { key: m.key, contentType: m.contentType, data: m.data } : null;
+  }
+  async setListingText(key: string, patch: { title?: string; description?: string }) {
+    const l = this.listings.get(key);
+    if (l) Object.assign(l, patch, { updatedAt: nowIso() });
   }
 }
 
@@ -376,6 +387,8 @@ function rowToListing(r: Row, imageIds: string[]): Listing {
     name: String(r.name ?? ""),
     published: Boolean(r.published),
     imageIds,
+    title: String(r.title ?? ""),
+    description: String(r.description ?? ""),
     createdBy: Number(r.created_by ?? 0),
     createdAt: new Date(r.created_at as string).toISOString(),
     updatedAt: new Date(r.updated_at as string).toISOString(),
@@ -472,6 +485,8 @@ class PgStore implements Store {
         data         BYTEA NOT NULL,
         created_at   TIMESTAMPTZ NOT NULL DEFAULT now()
       )`;
+    await sql`ALTER TABLE billz_listings ADD COLUMN IF NOT EXISTS title TEXT NOT NULL DEFAULT ''`;
+    await sql`ALTER TABLE billz_listings ADD COLUMN IF NOT EXISTS description TEXT NOT NULL DEFAULT ''`;
     await sql`CREATE INDEX IF NOT EXISTS billz_listing_images_key_idx ON billz_listing_images (listing_key, position)`;
     // Qo'lda kiritilgan katalog (sayt admin paneli yozadi) — sxema sayt bilan bir xil.
     // Sayt ham shu bazada jadval yaratadi — bir xil advisory lock bilan navbatlashamiz.
@@ -572,6 +587,12 @@ class PgStore implements Store {
       await t`DELETE FROM billz_listing_images WHERE listing_key = ${key}`;
       await t`UPDATE billz_listings SET published = false, updated_at = now() WHERE key = ${key}`;
     });
+  }
+
+  async setListingText(key: string, patch: { title?: string; description?: string }) {
+    if (patch.title !== undefined) await this.sql`UPDATE billz_listings SET title = ${patch.title}, updated_at = now() WHERE key = ${key}`;
+    if (patch.description !== undefined)
+      await this.sql`UPDATE billz_listings SET description = ${patch.description}, updated_at = now() WHERE key = ${key}`;
   }
 
   async getListingImage(id: string) {
